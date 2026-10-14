@@ -1,0 +1,76 @@
+# Gestión de campaña electoral - backend
+
+API REST construida con Java 17, Spring Boot 3, Spring Security, JWT, Spring Data JPA, Flyway y MySQL.
+
+Las relaciones organizativas son: un administrador puede tener varias cabeceras; cada cabecera pertenece a un solo administrador; cada cabecera puede tener varios líderes y cada líder pertenece a una sola cabecera. Los endpoints administrativos de cabeceras y líderes limitan la consulta y gestión a las cabeceras propiedad del administrador autenticado.
+
+La migración `V4` asigna las cabeceras preexistentes al administrador de menor ID, ya que el esquema anterior no guardaba propietario. Si la base contiene varios administradores y las cabeceras históricas tienen dueños distintos, revisa/corrige esos propietarios antes de operar con ellos.
+
+## Requisitos
+
+- JDK 17 o posterior.
+- MySQL 8.
+- PowerShell (o una terminal compatible con Maven Wrapper).
+
+## Configuración local
+
+1. Crear la base de datos antes de iniciar la aplicación:
+
+   ```sql
+   CREATE DATABASE Electo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+
+2. Configurar estas variables de entorno. `JWT_SECRET` debe contener al menos 32 bytes; use un valor aleatorio propio y no lo incluya en el repositorio.
+
+   ```powershell
+   $env:DB_URL = "jdbc:mysql://localhost:3306/Electo?serverTimezone=UTC"
+   $env:DB_USER = "root"
+   $env:DB_PASSWORD = "<contraseña-local>"
+   $env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
+   ```
+
+   También se pueden configurar `PORT` (por defecto `8080`), `JWT_EXPIRATION_MS` (por defecto un día) y `CORS_ALLOWED_ORIGINS` (por defecto `http://localhost:4200`). Flyway aplica automáticamente las migraciones de `src/main/resources/db/migration`; Hibernate valida el esquema y no lo crea ni modifica.
+
+3. Iniciar:
+
+   ```powershell
+   .\mvnw.cmd spring-boot:run
+   ```
+
+   La migración de datos de desarrollo crea `admin` y `lider.prueba`, ambas con contraseña inicial `Cambiar123!`, además de una cabecera y un líder de prueba. Cambie o desactive esas cuentas antes de usar datos reales; no reutilice estas credenciales en producción.
+
+## Pruebas
+
+```powershell
+.\mvnw.cmd test
+```
+
+Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
+
+```powershell
+.\mvnw.cmd package
+```
+
+## API
+
+- Documentación interactiva: `http://localhost:8080/swagger-ui.html`
+- OpenAPI: `http://localhost:8080/api-docs`
+- Las respuestas usan `{ "success": true, "message": "...", "data": ... }`. Las listas paginadas incluyen contenido y metadatos de página.
+- Iniciar sesión con `POST /api/auth/login`; enviar el token como `Authorization: Bearer <token>`.
+
+| Recurso | Rutas principales | Acceso |
+| --- | --- | --- |
+| Sesión | `POST /api/auth/login` | Público |
+| Cabeceras | `GET/POST /api/cabeceras`, `GET/PUT /api/cabeceras/{id}`, `PATCH /api/cabeceras/{id}/estado` | Consulta autenticada; administración `ADMIN` |
+| Líderes | `GET/POST /api/lideres`, `GET/PUT /api/lideres/{id}`, `PATCH /api/lideres/{id}/estado`, `GET /api/lideres/me` | Gestión `ADMIN`; perfil propio `LIDER` |
+| Posibles votantes | `GET/POST /api/votantes`, `GET /api/votantes/{id}`, `GET /api/votantes/documento/{documento}`, `PUT /api/votantes/{id}`, `PATCH /api/votantes/{id}/estado` | Consulta autenticada; registro `LIDER` |
+| Asignaciones e importación | `PUT /api/votantes/{id}/lider`, `GET /api/votantes/{id}/historial-asignaciones`, `DELETE /api/votantes/{id}`, `POST /api/votantes/importaciones/validar`, `POST /api/votantes/importaciones`, `POST /api/votantes/importaciones/reporte-errores` | Solo `ADMIN` |
+| Usuarios | `GET /api/usuarios`, `POST /api/usuarios/administradores`, `PATCH /api/usuarios/{id}/estado` | Solo `ADMIN`; las cuentas de líder se administran desde `/api/lideres` |
+| Paneles | `GET /api/dashboard/admin`, `GET /api/dashboard/lider` | `ADMIN` o `LIDER`, respectivamente |
+| Auditoría | `GET /api/auditoria` | Solo `ADMIN` |
+
+Los listados aceptan paginación Spring (`page`, `size`, `sort`); el tamaño máximo es 100. `GET /api/votantes` también acepta filtros por documento, nombres, apellidos, teléfono, estado, cabecera y líder. Las consultas de `LIDER` se limitan en el servidor a sus propios votantes.
+
+La importación acepta archivos `.csv` y `.xlsx` de hasta 5 MB. Requiere los encabezados `tipoDocumento`, `numeroDocumento`, `nombres`, `apellidos` y `mesaVotacion`; también admite `telefono`, `direccion`, `barrio`, `estado` y `observaciones`. El número de documento es único globalmente y la importación devuelve errores identificados por fila. La ruta `POST /api/votantes/importaciones/reporte-errores` recibe el archivo multipart con campo `archivo` y descarga como CSV las filas que no pasan la validación previa, sin guardar votantes.
+
+El alta y la actualización de votantes requieren `tipoDocumento`, `numeroDocumento`, `nombres`, `apellidos` y `mesaVotacion`; los demás datos de contacto y ubicación son opcionales.
