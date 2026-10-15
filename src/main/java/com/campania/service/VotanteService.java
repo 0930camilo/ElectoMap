@@ -19,7 +19,7 @@ public interface VotanteService {
 			String telefono,
 			EstadoVotante estado,
 			Long cabeceraId,
-			Long liderId,
+			String liderDocumento,
 			Pageable pageable
 	);
 

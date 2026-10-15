@@ -57,12 +57,19 @@ public class VotanteServiceImpl implements VotanteService {
 			String telefono,
 			EstadoVotante estado,
 			Long cabeceraId,
-			Long liderId,
+			String liderDocumento,
 			Pageable pageable
 	) {
 		Long administradorId = administradorIdAutenticado();
 		Long liderScope = liderAutenticadoIdSiAplica();
-		Long filtroLider = liderScope == null ? liderId : liderScope;
+		Long filtroLider = liderScope;
+		if (liderScope == null && liderDocumento != null && !liderDocumento.isBlank()) {
+			filtroLider = liderRepository.findByDocumentoAndAdministradorId(
+							normalizarDocumento(liderDocumento), administradorId)
+					.map(Lider::getId)
+					.orElseThrow(() -> new ResourceNotFoundException(
+							"No se encontró un líder con ese documento en su organización."));
+		}
 		Long filtroCabecera = liderScope == null ? cabeceraId : null;
 		return votanteRepository.findAll(
 						VotanteSpecifications.buscar(numeroDocumento, nombres, apellidos, telefono,
@@ -224,14 +231,9 @@ public class VotanteServiceImpl implements VotanteService {
 		obtenerVotante(votanteId);
 		return historialAsignacionRepository.findByVotante_IdOrderByFechaDesc(votanteId).stream()
 				.map(historial -> new HistorialAsignacionResponse(
-						historial.getId(),
-						historial.getVotante().getId(),
-						historial.getLiderAnterior() == null ? null : historial.getLiderAnterior().getId(),
-						historial.getLiderAnterior() == null ? null : nombreCompleto(historial.getLiderAnterior()),
-						historial.getLiderNuevo().getId(),
+						historial.getLiderAnterior() == null
+								? null : nombreCompleto(historial.getLiderAnterior()),
 						nombreCompleto(historial.getLiderNuevo()),
-						historial.getUsuario().getId(),
-						historial.getUsuario().getUsername(),
 						historial.getMotivo(),
 						historial.getFecha()))
 				.toList();

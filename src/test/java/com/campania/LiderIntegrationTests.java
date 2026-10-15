@@ -2,8 +2,9 @@ package com.campania;
 
 import com.campania.entity.Cabecera;
 import com.campania.entity.EstadoCabecera;
+import com.campania.entity.EstadoLider;
 import com.campania.entity.EstadoUsuario;
-import com.campania.entity.Cabecera;
+import com.campania.entity.Lider;
 import com.campania.entity.Rol;
 import com.campania.entity.Usuario;
 import com.campania.repository.CabeceraRepository;
@@ -23,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -100,6 +102,63 @@ class LiderIntegrationTests {
 				.andExpect(jsonPath("$.data.username").value("ana.lider"))
 				.andExpect(jsonPath("$.data.cabeceraNombre").value("Centro"))
 				.andExpect(jsonPath("$.data.password").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "test-leader-profile", roles = "LIDER")
+	void liderPuedeEditarSuPerfilSinModificarSuDocumentoNiOrganizacion() throws Exception {
+		Usuario usuarioLider = new Usuario();
+		usuarioLider.setNombres("Líder");
+		usuarioLider.setApellidos("Inicial");
+		usuarioLider.setUsername("test-leader-profile");
+		usuarioLider.setPasswordHash("not-used-in-this-test");
+		usuarioLider.setRol(Rol.LIDER);
+		usuarioLider.setEstado(EstadoUsuario.ACTIVO);
+		usuarioLider = usuarioRepository.save(usuarioLider);
+
+		Lider lider = new Lider();
+		lider.setUsuario(usuarioLider);
+		lider.setCabecera(cabeceraRepository.findById(cabeceraId).orElseThrow());
+		lider.setAdministradorId(usuarioRepository.findByUsername("test-admin").orElseThrow().getId());
+		lider.setNombres("Líder");
+		lider.setApellidos("Inicial");
+		lider.setDocumento("DOC-PERFIL");
+		lider.setEstado(EstadoLider.ACTIVO);
+		liderRepository.save(lider);
+
+		mockMvc.perform(put("/api/perfil/me")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Nombre Nuevo",
+								  "apellidos":"Apellido Nuevo",
+								  "username":"test-leader-profile",
+								  "email":"lider@example.com",
+								  "telefono":"3001234567"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.nombres").value("Nombre Nuevo"))
+				.andExpect(jsonPath("$.data.telefono").value("3001234567"))
+				.andExpect(jsonPath("$.data.rol").value("LIDER"));
+
+		Lider actualizado = liderRepository.findByUsuario_Id(usuarioLider.getId()).orElseThrow();
+		org.junit.jupiter.api.Assertions.assertEquals("DOC-PERFIL", actualizado.getDocumento());
+		org.junit.jupiter.api.Assertions.assertEquals("Apellido Nuevo", actualizado.getApellidos());
+		org.junit.jupiter.api.Assertions.assertEquals("lider@example.com", actualizado.getEmail());
+
+		mockMvc.perform(put("/api/perfil/me")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Nombre Conservado",
+								  "apellidos":"Apellido Nuevo",
+								  "username":"test-leader-profile"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.email").value("lider@example.com"))
+				.andExpect(jsonPath("$.data.telefono").value("3001234567"));
 	}
 
 	@Test

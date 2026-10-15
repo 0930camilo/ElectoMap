@@ -16,8 +16,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -85,5 +87,58 @@ class AuthIntegrationTests {
 								"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false));
+	}
+
+	@Test
+	void administradorPuedeEditarSuPropioPerfilYClaveConValidacionDeClaveActual() throws Exception {
+		mockMvc.perform(put("/api/perfil/me")
+						.with(user("admin-test").roles("ADMIN"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Admin Editado",
+								  "apellidos":"Perfil Actualizado",
+								  "username":"admin-renovado",
+								  "email":"admin@example.com",
+								  "nuevaClave":"NuevaClaveSegura123!"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.username").value("admin-renovado"))
+				.andExpect(jsonPath("$.data.rol").value("ADMIN"))
+				.andExpect(jsonPath("$.data.nuevaClave").doesNotExist());
+
+		Usuario actualizado = usuarioRepository.findByUsername("admin-renovado").orElseThrow();
+		org.junit.jupiter.api.Assertions.assertTrue(
+				passwordEncoder.matches("NuevaClaveSegura123!", actualizado.getPasswordHash()));
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"username":"admin-renovado","password":"NuevaClaveSegura123!"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.user.username").value("admin-renovado"));
+	}
+
+	@Test
+	void cambioDeClaveNoRequiereClaveActualConSesionAutenticada() throws Exception {
+		mockMvc.perform(put("/api/perfil/me")
+						.with(user("admin-test").roles("ADMIN"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Admin",
+								  "apellidos":"Prueba",
+								  "username":"admin-test",
+								  "nuevaClave":"NuevaClaveSegura123!"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.username").value("admin-test"));
+
+		Usuario actualizado = usuarioRepository.findByUsername("admin-test").orElseThrow();
+		org.junit.jupiter.api.Assertions.assertTrue(
+				passwordEncoder.matches("NuevaClaveSegura123!", actualizado.getPasswordHash()));
 	}
 }

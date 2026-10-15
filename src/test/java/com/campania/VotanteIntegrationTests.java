@@ -213,6 +213,35 @@ class VotanteIntegrationTests {
 	}
 
 	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorFiltraVotantesPorDocumentoDeLiderEnSuOrganizacion() throws Exception {
+		crearVotante("81810001");
+		mockMvc.perform(post("/api/votantes")
+						.with(user("other-leader").roles("LIDER"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"tipoDocumento":"CC","numeroDocumento":"81810002","nombres":"Otra",
+								 "apellidos":"Persona","mesaVotacion":"12"}
+								"""))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get("/api/votantes?page=0&size=10&liderDocumento=100000002"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalElements").value(1))
+				.andExpect(jsonPath("$.data.content[0].numeroDocumento").value("81810002"))
+				.andExpect(jsonPath("$.data.content[0].liderId").value(segundoLiderId));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorNoPuedeFiltrarPorDocumentoDeLiderDeOtraOrganizacion() throws Exception {
+		crearLiderDeOtroAdministrador("lider-ajeno-filtro");
+
+		mockMvc.perform(get("/api/votantes?page=0&size=10&liderDocumento=100000099"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	@WithMockUser(username = "test-leader", roles = "LIDER")
 	void liderNoPuedeConsultarRegistrosDeOtroLider() throws Exception {
 		Long votanteId = crearVotante("77777777");
@@ -240,8 +269,14 @@ class VotanteIntegrationTests {
 		org.junit.jupiter.api.Assertions.assertTrue(auditoriaRepository.count() >= 2);
 		mockMvc.perform(get("/api/votantes/{id}/historial-asignaciones", votanteId))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data[0].liderAnteriorId").value(primerLiderId))
-				.andExpect(jsonPath("$.data[0].liderNuevoId").value(segundoLiderId));
+				.andExpect(jsonPath("$.data[0].liderAnterior").value("Lider Prueba"))
+				.andExpect(jsonPath("$.data[0].liderNuevo").value("Lider Prueba"))
+				.andExpect(jsonPath("$.data[0].motivo").value("Reorganización territorial"))
+				.andExpect(jsonPath("$.data[0].fecha").isNotEmpty())
+				.andExpect(jsonPath("$.data[0].id").doesNotExist())
+				.andExpect(jsonPath("$.data[0].votanteId").doesNotExist())
+				.andExpect(jsonPath("$.data[0].usuarioId").doesNotExist())
+				.andExpect(jsonPath("$.data[0].username").doesNotExist());
 	}
 
 	@Test
@@ -320,19 +355,18 @@ class VotanteIntegrationTests {
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void auditoriaEsSoloLecturaYRestringidaAAdmin() throws Exception {
 		crearVotante("22222222");
+		Usuario adminActual = usuarioRepository.findByUsername("test-admin").orElseThrow();
+		java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
+		auditoriaRepository.save(nuevaAuditoria(adminActual, "Acción antigua", ahora.minusDays(1)));
+		auditoriaRepository.save(nuevaAuditoria(adminActual, "Acción reciente", ahora.plusMinutes(1)));
 		Usuario otroAdmin = usuarioRepository.save(nuevoUsuario("admin-auditoria-ajena", Rol.ADMIN));
-		com.campania.entity.Auditoria auditoriaAjena = new com.campania.entity.Auditoria();
-		auditoriaAjena.setUsuario(otroAdmin);
-		auditoriaAjena.setAccion(com.campania.entity.AccionAuditoria.CREAR);
-		auditoriaAjena.setEntidad("VOTANTE");
-		auditoriaAjena.setEntidadId(987654L);
-		auditoriaAjena.setDescripcion("Registro de otra organización.");
-		auditoriaAjena.setFecha(java.time.LocalDateTime.now());
-		auditoriaRepository.save(auditoriaAjena);
+		auditoriaRepository.save(nuevaAuditoria(otroAdmin, "Registro ajeno", ahora.plusDays(1)));
 		mockMvc.perform(get("/api/auditoria?page=0&size=10&entidad=VOTANTE"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.totalElements").value(1))
-				.andExpect(jsonPath("$.data.content[0].accion").value("CREAR"));
+				.andExpect(jsonPath("$.data.totalElements").value(3))
+				.andExpect(jsonPath("$.data.content[0].descripcion").value("Acción reciente"))
+				.andExpect(jsonPath("$.data.content[1].descripcion").value("Se registró un posible votante."))
+				.andExpect(jsonPath("$.data.content[2].descripcion").value("Acción antigua"));
 		mockMvc.perform(post("/api/auditoria")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
@@ -490,6 +524,18 @@ class VotanteIntegrationTests {
 		otraCabecera = cabeceraRepository.save(otraCabecera);
 		Usuario usuarioOtroLider = usuarioRepository.save(nuevoUsuario(username, Rol.LIDER));
 		return liderRepository.save(nuevoLider(usuarioOtroLider, otraCabecera, "100000099")).getId();
+	}
+
+	private com.campania.entity.Auditoria nuevaAuditoria(Usuario usuario, String descripcion,
+			java.time.LocalDateTime fecha) {
+		com.campania.entity.Auditoria auditoria = new com.campania.entity.Auditoria();
+		auditoria.setUsuario(usuario);
+		auditoria.setAccion(com.campania.entity.AccionAuditoria.CREAR);
+		auditoria.setEntidad("VOTANTE");
+		auditoria.setEntidadId(987654L);
+		auditoria.setDescripcion(descripcion);
+		auditoria.setFecha(fecha);
+		return auditoria;
 	}
 
 	private MockMultipartFile crearArchivoCsv(String contenido) {

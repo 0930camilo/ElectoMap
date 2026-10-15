@@ -16,7 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -73,7 +75,11 @@ public class AuditoriaServiceImpl implements AuditoriaService {
 					entidadId == null ? builder.conjunction()
 							: builder.equal(root.get("entidadId"), entidadId));
 		};
-		return auditoriaRepository.findAll(specification, pageable).map(auditoria ->
+		Pageable pageableOrdenado = pageable.getSort().isUnsorted()
+				? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+						Sort.by(Sort.Order.desc("fecha"), Sort.Order.desc("id")))
+				: pageable;
+		return auditoriaRepository.findAll(specification, pageableOrdenado).map(auditoria ->
 				new AuditoriaResponse(
 						auditoria.getId(),
 						auditoria.getUsuario().getId(),

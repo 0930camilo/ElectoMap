@@ -52,12 +52,12 @@ public class VotanteController {
 			@RequestParam(required = false) String telefono,
 			@RequestParam(required = false) EstadoVotante estado,
 			@RequestParam(required = false) Long cabeceraId,
-			@RequestParam(required = false) Long liderId,
+			@RequestParam(required = false) String liderDocumento,
 			Pageable pageable
 	) {
 		return ResponseEntity.ok(ApiResponse.success("Posibles votantes consultados correctamente.",
 				PageResponse.from(votanteService.listar(numeroDocumento, nombres, apellidos, telefono,
-						estado, cabeceraId, liderId, pageable))));
+						estado, cabeceraId, liderDocumento, pageable))));
 	}
 
 	@GetMapping("/documento/{numeroDocumento}")
