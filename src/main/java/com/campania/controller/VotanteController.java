@@ -7,6 +7,7 @@ import com.campania.dto.votante.ImportacionPreviewResponse;
 import com.campania.dto.votante.ImportacionResponse;
 import com.campania.dto.votante.HistorialAsignacionResponse;
 import com.campania.dto.votante.VotanteCreateRequest;
+import com.campania.dto.votante.VotanteAdminCreateRequest;
 import com.campania.dto.votante.VotanteEstadoRequest;
 import com.campania.dto.votante.VotanteResponse;
 import com.campania.dto.votante.VotanteUpdateRequest;
@@ -90,6 +91,17 @@ public class VotanteController {
 						votanteService.registrar(request)));
 	}
 
+	@PostMapping("/administrador")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<ApiResponse<VotanteResponse>> registrarComoAdministrador(
+			@Valid @RequestBody VotanteAdminCreateRequest request
+	) {
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(ApiResponse.success("Posible votante registrado y asignado al líder correctamente.",
+						votanteService.registrarParaAdministrador(
+								request.liderDocumento(), request.votante())));
+	}
+
 	@PutMapping("/{id}")
 	public ResponseEntity<ApiResponse<VotanteResponse>> actualizar(
 			@PathVariable Long id,
@@ -122,7 +134,7 @@ public class VotanteController {
 			@Valid @RequestBody CambioLiderRequest request
 	) {
 		return ResponseEntity.ok(ApiResponse.success("Responsable del posible votante actualizado correctamente.",
-				votanteService.cambiarLider(id, request.liderId(), request.motivo())));
+				votanteService.cambiarLider(id, request.liderDocumento(), request.motivo())));
 	}
 
 	@PostMapping("/importaciones/validar")

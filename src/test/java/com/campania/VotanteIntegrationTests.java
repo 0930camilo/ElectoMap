@@ -116,6 +116,57 @@ class VotanteIntegrationTests {
 	}
 
 	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorCreaVotanteYLoAsignaPorDocumentoDelLider() throws Exception {
+		mockMvc.perform(post("/api/votantes/administrador")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "liderDocumento":"100000001",
+								  "votante":{
+								    "tipoDocumento":"CC",
+								    "numeroDocumento":"12004567",
+								    "nombres":"Ana",
+								    "apellidos":"Pérez",
+								    "departamentoVotacion":"Córdoba",
+								    "municipioVotacion":"Moñitos",
+								    "puestoVotacion":"I.E. OBDULIO MAYO SCARPETA",
+								    "direccion":"CALLE 22B N° 9-17",
+								    "mesaVotacion":"15"
+								  }
+								}
+								"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.numeroDocumento").value("12004567"))
+				.andExpect(jsonPath("$.data.liderId").value(primerLiderId))
+				.andExpect(jsonPath("$.data.liderNombre").value("Lider Prueba"))
+				.andExpect(jsonPath("$.data.puestoVotacion").value("I.E. OBDULIO MAYO SCARPETA"));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorNoPuedeAsignarVotanteAUnLiderDeOtraOrganizacion() throws Exception {
+		crearLiderDeOtroAdministrador("lider-ajeno-asignacion");
+
+		mockMvc.perform(post("/api/votantes/administrador")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "liderDocumento":"100000099",
+								  "votante":{
+								    "tipoDocumento":"CC",
+								    "numeroDocumento":"12004568",
+								    "nombres":"Otra",
+								    "apellidos":"Persona",
+								    "mesaVotacion":"15"
+								  }
+								}
+								"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.success").value(false));
+	}
+
+	@Test
 	@WithMockUser(username = "test-leader", roles = "LIDER")
 	void rechazaDocumentoDuplicadoConConflictoInclusoEntreLideres() throws Exception {
 		crearVotante("88888888");
@@ -180,8 +231,8 @@ class VotanteIntegrationTests {
 		mockMvc.perform(put("/api/votantes/{id}/lider", votanteId)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"liderId":%d,"motivo":"Reorganización territorial"}
-								""".formatted(segundoLiderId)))
+								{"liderDocumento":"100000002","motivo":"Reorganización territorial"}
+								"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.liderId").value(segundoLiderId));
 
@@ -191,6 +242,23 @@ class VotanteIntegrationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data[0].liderAnteriorId").value(primerLiderId))
 				.andExpect(jsonPath("$.data[0].liderNuevoId").value(segundoLiderId));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorNoPuedeReasignarAVotanteAUnLiderDeOtraOrganizacionPorDocumento() throws Exception {
+		Long votanteId = crearVotante("66660000");
+		crearLiderDeOtroAdministrador("lider-ajeno-transferencia");
+
+		mockMvc.perform(put("/api/votantes/{id}/lider", votanteId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"liderDocumento":"100000099","motivo":"Cambio de responsable"}
+								"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.success").value(false));
+		org.junit.jupiter.api.Assertions.assertEquals(primerLiderId,
+				votanteRepository.findById(votanteId).orElseThrow().getLider().getId());
 	}
 
 	@Test
@@ -213,8 +281,8 @@ class VotanteIntegrationTests {
 		mockMvc.perform(put("/api/votantes/{id}/lider", votanteId)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"liderId":%d,"motivo":"Intento"}
-								""".formatted(segundoLiderId)))
+								{"liderDocumento":"100000002","motivo":"Intento"}
+								"""))
 				.andExpect(status().isForbidden());
 	}
 

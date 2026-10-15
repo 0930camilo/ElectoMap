@@ -95,6 +95,17 @@ public class VotanteServiceImpl implements VotanteService {
 	}
 
 	@Override
+	public VotanteResponse registrarParaAdministrador(String liderDocumento, VotanteCreateRequest request) {
+		Usuario administrador = administradorAutenticado();
+		String documentoNormalizado = normalizarDocumento(liderDocumento);
+		Lider lider = liderRepository.findByDocumentoAndAdministradorId(
+						documentoNormalizado, administrador.getId())
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"No se encontró un líder con ese documento en su organización."));
+		return crearParaLider(lider, request);
+	}
+
+	@Override
 	public VotanteResponse registrarParaLiderImportacion(Long liderId, VotanteCreateRequest request) {
 		long administradorId = validarDestinoImportacion(liderId);
 		Lider lider = liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administradorId)
@@ -174,11 +185,11 @@ public class VotanteServiceImpl implements VotanteService {
 	}
 
 	@Override
-	public VotanteResponse cambiarLider(Long id, Long nuevoLiderId, String motivo) {
+	public VotanteResponse cambiarLider(Long id, String nuevoLiderDocumento, String motivo) {
 		verificarAdmin();
 		Votante votante = obtenerVotante(id);
-		Lider nuevoLider = liderRepository.findByIdAndCabecera_Usuario_Id(
-						nuevoLiderId, votante.getAdministradorId())
+		Lider nuevoLider = liderRepository.findByDocumentoAndAdministradorId(
+						normalizarDocumento(nuevoLiderDocumento), votante.getAdministradorId())
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el nuevo líder."));
 		validarLiderActivo(nuevoLider);
 		Lider anterior = votante.getLider();

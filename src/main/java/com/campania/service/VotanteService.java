@@ -29,6 +29,8 @@ public interface VotanteService {
 
 	VotanteResponse registrar(VotanteCreateRequest request);
 
+	VotanteResponse registrarParaAdministrador(String liderDocumento, VotanteCreateRequest request);
+
 	VotanteResponse registrarParaLiderImportacion(Long liderId, VotanteCreateRequest request);
 
 	long validarDestinoImportacion(Long liderId);
@@ -39,7 +41,7 @@ public interface VotanteService {
 
 	void eliminarLogicamente(Long id);
 
-	VotanteResponse cambiarLider(Long id, Long nuevoLiderId, String motivo);
+	VotanteResponse cambiarLider(Long id, String nuevoLiderDocumento, String motivo);
 
 	List<HistorialAsignacionResponse> historialAsignaciones(Long votanteId);
 }

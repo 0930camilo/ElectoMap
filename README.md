@@ -63,8 +63,8 @@ Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
 | Sesión | `POST /api/auth/login` | Público |
 | Cabeceras | `GET/POST /api/cabeceras`, `GET/PUT /api/cabeceras/{id}`, `PATCH /api/cabeceras/{id}/estado` | Consulta autenticada; administración `ADMIN` |
 | Líderes | `GET/POST /api/lideres`, `GET/PUT /api/lideres/{id}`, `PATCH /api/lideres/{id}/estado`, `GET /api/lideres/me` | Gestión `ADMIN`; perfil propio `LIDER` |
-| Posibles votantes | `GET/POST /api/votantes`, `GET /api/votantes/{id}`, `GET /api/votantes/documento/{documento}`, `PUT /api/votantes/{id}`, `PATCH /api/votantes/{id}/estado` | Consulta autenticada; registro `LIDER` |
-| Asignaciones e importación | `PUT /api/votantes/{id}/lider`, `GET /api/votantes/{id}/historial-asignaciones`, `DELETE /api/votantes/{id}`, `POST /api/votantes/importaciones/validar`, `POST /api/votantes/importaciones`, `POST /api/votantes/importaciones/reporte-errores` | Solo `ADMIN` |
+| Posibles votantes | `GET/POST /api/votantes`, `POST /api/votantes/administrador`, `GET /api/votantes/{id}`, `GET /api/votantes/documento/{documento}`, `PUT /api/votantes/{id}`, `PATCH /api/votantes/{id}/estado` | Consulta autenticada; registro `LIDER` o `ADMIN` (para `ADMIN`, asigna por documento del líder) |
+| Asignaciones e importación | `PUT /api/votantes/{id}/lider`, `GET /api/votantes/{id}/historial-asignaciones`, `DELETE /api/votantes/{id}`, `POST /api/votantes/importaciones/validar`, `POST /api/votantes/importaciones`, `POST /api/votantes/importaciones/reporte-errores` | Solo `ADMIN`; la reasignación identifica al líder por `liderDocumento` |
 | Usuarios | `GET /api/usuarios`, `POST /api/usuarios/administradores`, `PATCH /api/usuarios/{id}/estado` | Solo `ADMIN`; las cuentas de líder se administran desde `/api/lideres` |
 | Paneles | `GET /api/dashboard/admin`, `GET /api/dashboard/lider` | `ADMIN` o `LIDER`, respectivamente |
 | Auditoría | `GET /api/auditoria` | Solo `ADMIN` |
