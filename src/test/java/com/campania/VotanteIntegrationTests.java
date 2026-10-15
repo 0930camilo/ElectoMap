@@ -6,6 +6,7 @@ import com.campania.entity.EstadoLider;
 import com.campania.entity.EstadoUsuario;
 import com.campania.entity.Lider;
 import com.campania.entity.Rol;
+import com.campania.entity.TipoDocumento;
 import com.campania.entity.Usuario;
 import com.campania.repository.AuditoriaRepository;
 import com.campania.repository.CabeceraRepository;
@@ -119,7 +120,36 @@ class VotanteIntegrationTests {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.message").value(
-						"Esta persona ya se encuentra registrada en el sistema y está asignada a otro líder."));
+						"Ya existe un votante con ese documento en su organización."));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void documentosDeVotantesSeAislanPorAdministradorEnConsultasYDuplicidad() throws Exception {
+		Long votantePropioId = crearVotante("81818181");
+		Long liderAjenoId = crearLiderDeOtroAdministrador("lider-ajeno-duplicado");
+		String respuestaAjena = mockMvc.perform(post("/api/votantes")
+						.with(user("lider-ajeno-duplicado").roles("LIDER"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"tipoDocumento":"CC","numeroDocumento":"81818181","nombres":"Persona",
+								 "apellidos":"De otra organización","mesaVotacion":"20"}
+								"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.liderId").value(liderAjenoId))
+				.andReturn().getResponse().getContentAsString();
+		Long votanteAjenoId = new com.fasterxml.jackson.databind.ObjectMapper()
+				.readTree(respuestaAjena).path("data").path("id").asLong();
+
+		mockMvc.perform(get("/api/votantes?page=0&size=10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalElements").value(1))
+				.andExpect(jsonPath("$.data.content[0].id").value(votantePropioId));
+		mockMvc.perform(get("/api/votantes/{id}", votanteAjenoId))
+				.andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/votantes/documento/{documento}", "81818181"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.id").value(votantePropioId));
 	}
 
 	@Test
@@ -181,15 +211,19 @@ class VotanteIntegrationTests {
 
 	@Test
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
-	void dashboardAdminIncluyeEstadisticasGlobales() throws Exception {
+	void dashboardAdminSoloIncluyeDatosDeSusCabeceras() throws Exception {
 		crearVotante("44444444");
+		crearOrganizacionDeOtroAdministradorConVotante("99990000");
 		mockMvc.perform(get("/api/dashboard/admin"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.totalCabeceras").value(1))
 				.andExpect(jsonPath("$.data.totalLideres").value(2))
 				.andExpect(jsonPath("$.data.totalVotantes").value(1))
 				.andExpect(jsonPath("$.data.registrosHoy").value(1))
-				.andExpect(jsonPath("$.data.porCabecera[0].total").value(1));
+				.andExpect(jsonPath("$.data.porCabecera.length()").value(1))
+				.andExpect(jsonPath("$.data.porCabecera[0].nombre").value("Centro"))
+				.andExpect(jsonPath("$.data.porCabecera[0].total").value(1))
+				.andExpect(jsonPath("$.data.porLider.length()").value(2));
 	}
 
 	@Test
@@ -209,6 +243,15 @@ class VotanteIntegrationTests {
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void auditoriaEsSoloLecturaYRestringidaAAdmin() throws Exception {
 		crearVotante("22222222");
+		Usuario otroAdmin = usuarioRepository.save(nuevoUsuario("admin-auditoria-ajena", Rol.ADMIN));
+		com.campania.entity.Auditoria auditoriaAjena = new com.campania.entity.Auditoria();
+		auditoriaAjena.setUsuario(otroAdmin);
+		auditoriaAjena.setAccion(com.campania.entity.AccionAuditoria.CREAR);
+		auditoriaAjena.setEntidad("VOTANTE");
+		auditoriaAjena.setEntidadId(987654L);
+		auditoriaAjena.setDescripcion("Registro de otra organización.");
+		auditoriaAjena.setFecha(java.time.LocalDateTime.now());
+		auditoriaRepository.save(auditoriaAjena);
 		mockMvc.perform(get("/api/auditoria?page=0&size=10&entidad=VOTANTE"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.totalElements").value(1))
@@ -228,7 +271,9 @@ class VotanteIntegrationTests {
 				CC,12345678,Otra,Persona,12
 				""");
 
-		mockMvc.perform(multipart("/api/votantes/importaciones/validar").file(archivo))
+		mockMvc.perform(multipart("/api/votantes/importaciones/validar")
+						.file(archivo)
+						.param("liderId", primerLiderId.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.totalFilas").value(2))
 				.andExpect(jsonPath("$.data.filasValidas").value(1))
@@ -246,7 +291,9 @@ class VotanteIntegrationTests {
 				CC,12345678,Otra,Persona,12
 				""");
 
-		mockMvc.perform(multipart("/api/votantes/importaciones/reporte-errores").file(archivo))
+		mockMvc.perform(multipart("/api/votantes/importaciones/reporte-errores")
+						.file(archivo)
+						.param("liderId", primerLiderId.toString()))
 				.andExpect(status().isOk())
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
 						.content().contentTypeCompatibleWith("text/csv"))
@@ -283,13 +330,14 @@ class VotanteIntegrationTests {
 						.file(crearArchivoCsv("""
 								tipoDocumento,numeroDocumento,nombres,apellidos,mesaVotacion
 								CC,88888888,Ana,Gómez,12
-								""")))
+								"""))
+						.param("liderId", primerLiderId.toString()))
 				.andExpect(status().isForbidden());
 	}
 
 	@Test
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
-	void adminPuedeCrearYConsultarOtroAdministradorSinExponerHash() throws Exception {
+	void adminPuedeCrearOtroAdministradorPeroNoConsultarNiAdministrarSuCuenta() throws Exception {
 		String response = mockMvc.perform(post("/api/usuarios/administradores")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -305,13 +353,12 @@ class VotanteIntegrationTests {
 
 		mockMvc.perform(get("/api/usuarios?page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.totalElements").value(4));
+				.andExpect(jsonPath("$.data.totalElements").value(3));
 		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 						.patch("/api/usuarios/{id}/estado", usuarioId)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"estado\":\"INACTIVO\"}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.estado").value("INACTIVO"));
+				.andExpect(status().isNotFound());
 	}
 
 	private Long crearVotante(String documento) throws Exception {
@@ -326,6 +373,41 @@ class VotanteIntegrationTests {
 		String id = new com.fasterxml.jackson.databind.ObjectMapper()
 				.readTree(response).path("data").path("id").asText();
 		return Long.valueOf(id);
+	}
+
+	private Long crearOrganizacionDeOtroAdministradorConVotante(String documento) {
+		Usuario otroAdmin = usuarioRepository.save(nuevoUsuario("otro-admin-dashboard", Rol.ADMIN));
+		Cabecera otraCabecera = new Cabecera();
+		otraCabecera.setNombre("Cabecera ajena");
+		otraCabecera.setEstado(EstadoCabecera.ACTIVA);
+		otraCabecera.setUsuario(otroAdmin);
+		otraCabecera = cabeceraRepository.save(otraCabecera);
+
+		Usuario usuarioOtroLider = usuarioRepository.save(nuevoUsuario("lider-ajeno-dashboard", Rol.LIDER));
+		Lider otroLider = nuevoLider(usuarioOtroLider, otraCabecera, "100000003");
+		otroLider = liderRepository.save(otroLider);
+
+		com.campania.entity.Votante otroVotante = new com.campania.entity.Votante();
+		otroVotante.setTipoDocumento(TipoDocumento.CC);
+		otroVotante.setNumeroDocumento(documento);
+		otroVotante.setNombres("Votante");
+		otroVotante.setApellidos("Ajeno");
+		otroVotante.setMesaVotacion("20");
+		otroVotante.setEstado(com.campania.entity.EstadoVotante.CONFIRMADO);
+		otroVotante.setLider(otroLider);
+		otroVotante.setAdministradorId(otroAdmin.getId());
+		return votanteRepository.save(otroVotante).getId();
+	}
+
+	private Long crearLiderDeOtroAdministrador(String username) {
+		Usuario otroAdmin = usuarioRepository.save(nuevoUsuario(username + "-admin", Rol.ADMIN));
+		Cabecera otraCabecera = new Cabecera();
+		otraCabecera.setNombre("Cabecera " + username);
+		otraCabecera.setEstado(EstadoCabecera.ACTIVA);
+		otraCabecera.setUsuario(otroAdmin);
+		otraCabecera = cabeceraRepository.save(otraCabecera);
+		Usuario usuarioOtroLider = usuarioRepository.save(nuevoUsuario(username, Rol.LIDER));
+		return liderRepository.save(nuevoLider(usuarioOtroLider, otraCabecera, "100000099")).getId();
 	}
 
 	private MockMultipartFile crearArchivoCsv(String contenido) {
@@ -351,6 +433,7 @@ class VotanteIntegrationTests {
 		Lider lider = new Lider();
 		lider.setUsuario(usuario);
 		lider.setCabecera(cabecera);
+		lider.setAdministradorId(cabecera.getUsuario().getId());
 		lider.setNombres("Lider");
 		lider.setApellidos("Prueba");
 		lider.setDocumento(documento);

@@ -14,4 +14,6 @@ public interface CabeceraRepository extends JpaRepository<Cabecera, Long> {
 	Optional<Cabecera> findByIdAndUsuario_Username(Long id, String username);
 
 	long countByEstado(EstadoCabecera estado);
+
+	long countByUsuario_UsernameAndEstado(String username, EstadoCabecera estado);
 }

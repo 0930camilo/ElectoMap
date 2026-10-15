@@ -66,14 +66,15 @@ public class LiderServiceImpl implements LiderService {
 
 	@Override
 	public LiderResponse crear(LiderCreateRequest request) {
-		if (liderRepository.existsByDocumento(request.documento())) {
-			throw new ConflictException("Ya existe un líder con ese documento.");
-		}
 		if (usuarioRepository.existsByUsername(request.username())) {
 			throw new ConflictException("El username ya se encuentra registrado.");
 		}
 
 		Cabecera cabecera = obtenerCabeceraActiva(request.cabeceraId());
+		String documento = normalizarDocumento(request.documento());
+		if (liderRepository.existsByDocumentoAndAdministradorId(documento, cabecera.getUsuario().getId())) {
+			throw new ConflictException("Ya existe un líder con ese documento en su organización.");
+		}
 		Usuario usuario = new Usuario();
 		usuario.setNombres(request.nombres().trim());
 		usuario.setApellidos(request.apellidos().trim());
@@ -87,6 +88,7 @@ public class LiderServiceImpl implements LiderService {
 		Lider lider = new Lider();
 		lider.setUsuario(usuario);
 		lider.setCabecera(cabecera);
+		lider.setAdministradorId(cabecera.getUsuario().getId());
 		aplicarDatos(lider, request);
 		Lider guardado = liderRepository.save(lider);
 		auditoriaService.registrar(AccionAuditoria.CREAR, "LIDER", guardado.getId(),
@@ -97,10 +99,14 @@ public class LiderServiceImpl implements LiderService {
 	@Override
 	public LiderResponse actualizar(Long id, LiderUpdateRequest request) {
 		Lider lider = obtenerLider(id);
-		if (liderRepository.existsByDocumentoAndIdNot(request.documento(), id)) {
-			throw new ConflictException("Ya existe un líder con ese documento.");
+		Cabecera cabecera = obtenerCabeceraActiva(request.cabeceraId());
+		String documento = normalizarDocumento(request.documento());
+		if (liderRepository.existsByDocumentoAndAdministradorIdAndIdNot(
+				documento, cabecera.getUsuario().getId(), id)) {
+			throw new ConflictException("Ya existe un líder con ese documento en su organización.");
 		}
-		lider.setCabecera(obtenerCabeceraActiva(request.cabeceraId()));
+		lider.setCabecera(cabecera);
+		lider.setAdministradorId(cabecera.getUsuario().getId());
 		aplicarDatos(lider, request);
 		lider.getUsuario().setNombres(lider.getNombres());
 		lider.getUsuario().setApellidos(lider.getApellidos());
@@ -159,7 +165,7 @@ public class LiderServiceImpl implements LiderService {
 	private void aplicarDatos(Lider lider, LiderCreateRequest request) {
 		lider.setNombres(request.nombres().trim());
 		lider.setApellidos(request.apellidos().trim());
-		lider.setDocumento(request.documento().trim());
+		lider.setDocumento(normalizarDocumento(request.documento()));
 		lider.setTelefono(request.telefono());
 		lider.setEmail(normalizarEmail(request.email()));
 	}
@@ -167,13 +173,17 @@ public class LiderServiceImpl implements LiderService {
 	private void aplicarDatos(Lider lider, LiderUpdateRequest request) {
 		lider.setNombres(request.nombres().trim());
 		lider.setApellidos(request.apellidos().trim());
-		lider.setDocumento(request.documento().trim());
+		lider.setDocumento(normalizarDocumento(request.documento()));
 		lider.setTelefono(request.telefono());
 		lider.setEmail(normalizarEmail(request.email()));
 	}
 
 	private String normalizarEmail(String email) {
 		return email == null || email.isBlank() ? null : email.trim().toLowerCase();
+	}
+
+	private String normalizarDocumento(String documento) {
+		return documento.trim().toUpperCase(java.util.Locale.ROOT);
 	}
 
 	private LiderResponse aResponse(Lider lider) {

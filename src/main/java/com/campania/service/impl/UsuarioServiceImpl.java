@@ -36,8 +36,8 @@ public class UsuarioServiceImpl implements UsuarioService {
 	@Override
 	@Transactional(readOnly = true)
 	public Page<UsuarioResponse> listar(Pageable pageable) {
-		verificarAdmin();
-		return usuarioRepository.findAll(pageable).map(this::aResponse);
+		Usuario administrador = administradorAutenticado();
+		return usuarioRepository.findAllByAdministradorId(administrador.getId(), pageable).map(this::aResponse);
 	}
 
 	@Override
@@ -63,11 +63,11 @@ public class UsuarioServiceImpl implements UsuarioService {
 
 	@Override
 	public UsuarioResponse cambiarEstadoAdministrador(Long id, EstadoUsuario estado) {
-		verificarAdmin();
+		Usuario administradorAutenticado = administradorAutenticado();
 		Usuario usuario = usuarioRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el usuario solicitado."));
-		if (usuario.getRol() != Rol.ADMIN) {
-			throw new BusinessRuleException("Las cuentas de líder se administran desde el recurso de líderes.");
+		if (usuario.getRol() != Rol.ADMIN || !usuario.getId().equals(administradorAutenticado.getId())) {
+			throw new ResourceNotFoundException("No se encontró el usuario solicitado.");
 		}
 		if (estado == EstadoUsuario.INACTIVO) {
 			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -95,6 +95,17 @@ public class UsuarioServiceImpl implements UsuarioService {
 				.noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
 			throw new AccessDeniedException("Esta operación requiere permisos de administrador.");
 		}
+	}
+
+	private Usuario administradorAutenticado() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || authentication.getAuthorities().stream()
+				.noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
+			throw new AccessDeniedException("Esta operación requiere permisos de administrador.");
+		}
+		return usuarioRepository.findByUsername(authentication.getName())
+				.filter(usuario -> usuario.getRol() == Rol.ADMIN)
+				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el administrador autenticado."));
 	}
 
 	private String normalizarEmail(String email) {

@@ -25,7 +25,8 @@ import lombok.Setter;
 @Table(name = "lider",
 		uniqueConstraints = {
 				@UniqueConstraint(name = "uk_lider_usuario", columnNames = "usuario_id"),
-				@UniqueConstraint(name = "uk_lider_documento", columnNames = "documento")
+				@UniqueConstraint(name = "uk_lider_admin_documento",
+						columnNames = {"administrador_id", "documento"})
 		},
 		indexes = {
 				@Index(name = "idx_lider_cabecera", columnList = "cabecera_id"),
@@ -44,6 +45,9 @@ public class Lider extends AuditableEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "cabecera_id", nullable = false)
 	private Cabecera cabecera;
+
+	@Column(name = "administrador_id", nullable = false)
+	private Long administradorId;
 
 	@Column(name = "nombres", nullable = false, length = 100)
 	private String nombres;

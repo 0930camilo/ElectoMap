@@ -6,9 +6,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface ImportacionVotantesService {
 
-	ImportacionPreviewResponse validar(MultipartFile archivo);
+	ImportacionPreviewResponse validar(MultipartFile archivo, Long liderId);
 
 	ImportacionResponse importar(MultipartFile archivo, Long liderId);
 
-	byte[] reporteErrores(MultipartFile archivo);
+	byte[] reporteErrores(MultipartFile archivo, Long liderId);
 }

@@ -30,13 +30,17 @@ public interface LiderRepository extends JpaRepository<Lider, Long> {
 	@EntityGraph(attributePaths = {"usuario", "cabecera"})
 	Optional<Lider> findByIdAndCabecera_Usuario_Username(Long id, String username);
 
-	boolean existsByDocumento(String documento);
+	Optional<Lider> findByIdAndCabecera_Usuario_Id(Long id, Long administradorId);
 
-	boolean existsByDocumentoAndIdNot(String documento, Long id);
+	boolean existsByDocumentoAndAdministradorId(String documento, Long administradorId);
+
+	boolean existsByDocumentoAndAdministradorIdAndIdNot(String documento, Long administradorId, Long id);
 
 	Optional<Lider> findByUsuario_Id(Long usuarioId);
 
 	long countByEstado(EstadoLider estado);
 
 	long countByCabecera_Id(Long cabeceraId);
+
+	long countByCabecera_Usuario_UsernameAndEstado(String username, EstadoLider estado);
 }

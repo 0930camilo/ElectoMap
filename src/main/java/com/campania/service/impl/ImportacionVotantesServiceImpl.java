@@ -47,9 +47,10 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 	private final VotanteService votanteService;
 
 	@Override
-	public ImportacionPreviewResponse validar(MultipartFile archivo) {
+	public ImportacionPreviewResponse validar(MultipartFile archivo, Long liderId) {
 		List<ImportRow> filas = leerArchivo(archivo);
-		ValidationResult validation = validarFilas(filas);
+		long administradorId = votanteService.validarDestinoImportacion(liderId);
+		ValidationResult validation = validarFilas(filas, administradorId);
 		return new ImportacionPreviewResponse(
 				filas.size(),
 				validation.validas().size(),
@@ -67,9 +68,9 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 
 	@Override
 	public ImportacionResponse importar(MultipartFile archivo, Long liderId) {
-		votanteService.validarDestinoImportacion(liderId);
+		long administradorId = votanteService.validarDestinoImportacion(liderId);
 		List<ImportRow> filas = leerArchivo(archivo);
-		ValidationResult validation = validarFilas(filas);
+		ValidationResult validation = validarFilas(filas, administradorId);
 		List<ImportacionError> errores = new ArrayList<>(validation.errores());
 		int importados = 0;
 
@@ -82,7 +83,8 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 						&& !esConflictoDocumento(dataIntegrityViolationException)) {
 					throw exception;
 				}
-				errores.add(new ImportacionError(fila.numero(), "El documento ya existe en el sistema."));
+				errores.add(new ImportacionError(fila.numero(),
+						"El documento ya existe en la organización de destino."));
 			}
 		}
 
@@ -90,8 +92,9 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 	}
 
 	@Override
-	public byte[] reporteErrores(MultipartFile archivo) {
-		ValidationResult validation = validarFilas(leerArchivo(archivo));
+	public byte[] reporteErrores(MultipartFile archivo, Long liderId) {
+		long administradorId = votanteService.validarDestinoImportacion(liderId);
+		ValidationResult validation = validarFilas(leerArchivo(archivo), administradorId);
 		StringBuilder csv = new StringBuilder("\uFEFFfila,mensaje\r\n");
 		for (ImportacionError error : validation.errores()) {
 			csv.append(error.fila()).append(',')
@@ -109,7 +112,7 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 		Throwable cause = exception;
 		while (cause != null) {
 			if (cause.getMessage() != null
-					&& cause.getMessage().toLowerCase(Locale.ROOT).contains("uk_votante_numero_documento")) {
+					&& cause.getMessage().toLowerCase(Locale.ROOT).contains("uk_votante_admin_documento")) {
 				return true;
 			}
 			cause = cause.getCause();
@@ -117,7 +120,7 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 		return false;
 	}
 
-	private ValidationResult validarFilas(List<ImportRow> filas) {
+	private ValidationResult validarFilas(List<ImportRow> filas, long administradorId) {
 		List<ImportRow> validas = new ArrayList<>();
 		List<ImportacionError> errores = new ArrayList<>();
 		Set<String> documentosArchivo = new HashSet<>();
@@ -146,8 +149,9 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 				errores.add(new ImportacionError(fila.numero(), message));
 				continue;
 			}
-			if (votanteRepository.existsByNumeroDocumento(documento)) {
-				errores.add(new ImportacionError(fila.numero(), "El documento ya existe en el sistema."));
+			if (votanteRepository.existsByNumeroDocumentoAndAdministradorId(documento, administradorId)) {
+				errores.add(new ImportacionError(fila.numero(),
+						"El documento ya existe en la organización de destino."));
 				continue;
 			}
 			validas.add(fila);

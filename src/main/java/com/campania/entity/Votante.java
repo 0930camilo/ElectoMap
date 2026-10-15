@@ -25,7 +25,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "votante",
 		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_votante_numero_documento", columnNames = "numero_documento")
+				@UniqueConstraint(name = "uk_votante_admin_documento",
+						columnNames = {"administrador_id", "numero_documento"})
 		},
 		indexes = {
 				@Index(name = "idx_votante_nombres", columnList = "nombres"),
@@ -75,6 +76,9 @@ public class Votante extends AuditableEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "lider_id", nullable = false)
 	private Lider lider;
+
+	@Column(name = "administrador_id", nullable = false)
+	private Long administradorId;
 
 	@Column(name = "fecha_eliminacion")
 	private LocalDateTime fechaEliminacion;

@@ -31,7 +31,7 @@ public interface VotanteService {
 
 	VotanteResponse registrarParaLiderImportacion(Long liderId, VotanteCreateRequest request);
 
-	void validarDestinoImportacion(Long liderId);
+	long validarDestinoImportacion(Long liderId);
 
 	VotanteResponse actualizar(Long id, VotanteUpdateRequest request);
 

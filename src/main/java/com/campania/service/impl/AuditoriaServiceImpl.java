@@ -3,6 +3,7 @@ package com.campania.service.impl;
 import com.campania.entity.AccionAuditoria;
 import com.campania.entity.Auditoria;
 import com.campania.entity.Usuario;
+import com.campania.entity.Lider;
 import com.campania.dto.auditoria.AuditoriaResponse;
 import com.campania.exception.ResourceNotFoundException;
 import com.campania.repository.AuditoriaRepository;
@@ -51,13 +52,27 @@ public class AuditoriaServiceImpl implements AuditoriaService {
 	@Override
 	@Transactional(readOnly = true)
 	public Page<AuditoriaResponse> listar(Pageable pageable, String entidad, Long entidadId) {
-		Specification<com.campania.entity.Auditoria> specification = (root, query, builder) ->
-				builder.and(
-						entidad == null || entidad.isBlank()
-								? builder.conjunction()
-								: builder.equal(builder.lower(root.get("entidad")), entidad.trim().toLowerCase(Locale.ROOT)),
-						entidadId == null ? builder.conjunction()
-								: builder.equal(root.get("entidadId"), entidadId));
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null) {
+			throw new IllegalStateException("Se requiere un administrador autenticado para consultar la auditoría.");
+		}
+		Usuario administrador = usuarioRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el usuario autenticado."));
+		Specification<com.campania.entity.Auditoria> specification = (root, query, builder) -> {
+			var lideresDelAdministrador = query.subquery(Long.class);
+			var lider = lideresDelAdministrador.from(Lider.class);
+			lideresDelAdministrador.select(lider.get("usuario").get("id"))
+					.where(builder.equal(lider.get("administradorId"), administrador.getId()));
+			return builder.and(
+					builder.or(
+							builder.equal(root.get("usuario").get("id"), administrador.getId()),
+							root.get("usuario").get("id").in(lideresDelAdministrador)),
+					entidad == null || entidad.isBlank()
+							? builder.conjunction()
+							: builder.equal(builder.lower(root.get("entidad")), entidad.trim().toLowerCase(Locale.ROOT)),
+					entidadId == null ? builder.conjunction()
+							: builder.equal(root.get("entidadId"), entidadId));
+		};
 		return auditoriaRepository.findAll(specification, pageable).map(auditoria ->
 				new AuditoriaResponse(
 						auditoria.getId(),

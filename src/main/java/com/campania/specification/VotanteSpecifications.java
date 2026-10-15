@@ -18,13 +18,15 @@ public final class VotanteSpecifications {
 			String telefono,
 			EstadoVotante estado,
 			Long cabeceraId,
-			Long liderId
+			Long liderId,
+			Long administradorId
 	) {
 		return (root, query, builder) -> {
 			var predicates = builder.and(
 					builder.isNull(root.get("fechaEliminacion")),
 					liderId == null ? builder.conjunction()
 							: builder.equal(root.get("lider").get("id"), liderId),
+					builder.equal(root.get("administradorId"), administradorId),
 					cabeceraId == null ? builder.conjunction()
 							: builder.equal(root.get("lider").get("cabecera").get("id"), cabeceraId),
 					estado == null ? builder.conjunction() : builder.equal(root.get("estado"), estado),

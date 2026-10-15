@@ -162,6 +162,60 @@ class LiderIntegrationTests {
 
 	@Test
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void documentoDeLiderSePuedeReutilizarEnOrganizacionesDistintas() throws Exception {
+		Usuario otroAdmin = new Usuario();
+		otroAdmin.setNombres("Otro");
+		otroAdmin.setApellidos("Administrador");
+		otroAdmin.setUsername("otro-admin-documento");
+		otroAdmin.setPasswordHash("not-used-in-this-test");
+		otroAdmin.setRol(Rol.ADMIN);
+		otroAdmin.setEstado(EstadoUsuario.ACTIVO);
+		otroAdmin = usuarioRepository.save(otroAdmin);
+		Cabecera otraCabecera = new Cabecera();
+		otraCabecera.setNombre("Otra");
+		otraCabecera.setEstado(EstadoCabecera.ACTIVA);
+		otraCabecera.setUsuario(otroAdmin);
+		Long otraCabeceraId = cabeceraRepository.save(otraCabecera).getId();
+
+		mockMvc.perform(post("/api/lideres")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"nombres":"Ana","apellidos":"Pérez","documento":"DOC-COMPARTIDO",
+								 "username":"lider-primera-org","password":"ClaveSegura123!","cabeceraId":%d}
+								""".formatted(cabeceraId)))
+				.andExpect(status().isCreated());
+		mockMvc.perform(post("/api/lideres")
+						.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+								.user("otro-admin-documento").roles("ADMIN"))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"nombres":"Luis","apellidos":"Gómez","documento":"DOC-COMPARTIDO",
+								 "username":"lider-segunda-org","password":"ClaveSegura123!","cabeceraId":%d}
+								""".formatted(otraCabeceraId)))
+				.andExpect(status().isCreated());
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void documentoDeLiderNoSePuedeRepetirEnLaMismaOrganizacion() throws Exception {
+		mockMvc.perform(post("/api/lideres")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"nombres":"Ana","apellidos":"Pérez","documento":"DOC-REPETIDO",
+								 "username":"lider-primero","password":"ClaveSegura123!","cabeceraId":%d}
+								""".formatted(cabeceraId)))
+				.andExpect(status().isCreated());
+		mockMvc.perform(post("/api/lideres")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"nombres":"Luis","apellidos":"Gómez","documento":"DOC-REPETIDO",
+								 "username":"lider-segundo","password":"ClaveSegura123!","cabeceraId":%d}
+								""".formatted(cabeceraId)))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void noPermiteCrearLiderEnCabeceraInactiva() throws Exception {
 		Cabecera cabecera = cabeceraRepository.findById(cabeceraId).orElseThrow();
 		cabecera.setEstado(EstadoCabecera.INACTIVA);

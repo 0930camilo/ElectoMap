@@ -60,12 +60,13 @@ public class VotanteServiceImpl implements VotanteService {
 			Long liderId,
 			Pageable pageable
 	) {
+		Long administradorId = administradorIdAutenticado();
 		Long liderScope = liderAutenticadoIdSiAplica();
 		Long filtroLider = liderScope == null ? liderId : liderScope;
 		Long filtroCabecera = liderScope == null ? cabeceraId : null;
 		return votanteRepository.findAll(
 						VotanteSpecifications.buscar(numeroDocumento, nombres, apellidos, telefono,
-								estado, filtroCabecera, filtroLider),
+								estado, filtroCabecera, filtroLider, administradorId),
 						pageable)
 				.map(this::aResponse);
 	}
@@ -80,7 +81,8 @@ public class VotanteServiceImpl implements VotanteService {
 	@Transactional(readOnly = true)
 	public VotanteResponse buscarPorDocumento(String numeroDocumento) {
 		String documento = normalizarDocumento(numeroDocumento);
-		Votante votante = votanteRepository.findByNumeroDocumentoAndFechaEliminacionIsNull(documento)
+		Votante votante = votanteRepository.findByNumeroDocumentoAndAdministradorIdAndFechaEliminacionIsNull(
+						documento, administradorIdAutenticado())
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró una persona con ese documento."));
 		verificarAcceso(votante);
 		return aResponse(votante);
@@ -94,26 +96,28 @@ public class VotanteServiceImpl implements VotanteService {
 
 	@Override
 	public VotanteResponse registrarParaLiderImportacion(Long liderId, VotanteCreateRequest request) {
-		verificarAdmin();
-		Lider lider = liderRepository.findById(liderId)
+		long administradorId = validarDestinoImportacion(liderId);
+		Lider lider = liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administradorId)
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el líder de destino."));
 		return crearParaLider(lider, request);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public void validarDestinoImportacion(Long liderId) {
-		verificarAdmin();
-		Lider lider = liderRepository.findById(liderId)
+	public long validarDestinoImportacion(Long liderId) {
+		Usuario administrador = administradorAutenticado();
+		Lider lider = liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administrador.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el líder de destino."));
 		validarLiderActivo(lider);
+		return administrador.getId();
 	}
 
 	private VotanteResponse crearParaLider(Lider lider, VotanteCreateRequest request) {
 		validarLiderActivo(lider);
 		String documento = normalizarDocumento(request.numeroDocumento());
-		if (votanteRepository.existsByNumeroDocumento(documento)) {
-			throw new ConflictException("Esta persona ya se encuentra registrada en el sistema y está asignada a otro líder.");
+		Long administradorId = lider.getCabecera().getUsuario().getId();
+		if (votanteRepository.existsByNumeroDocumentoAndAdministradorId(documento, administradorId)) {
+			throw new ConflictException("Ya existe un votante con ese documento en su organización.");
 		}
 
 		Votante votante = new Votante();
@@ -122,6 +126,7 @@ public class VotanteServiceImpl implements VotanteService {
 		aplicarDatos(votante, request);
 		votante.setEstado(request.estado() == null ? EstadoVotante.PENDIENTE : request.estado());
 		votante.setLider(lider);
+		votante.setAdministradorId(administradorId);
 		Votante guardado = votanteRepository.saveAndFlush(votante);
 		auditoriaService.registrar(AccionAuditoria.CREAR, "VOTANTE", guardado.getId(),
 				"Se registró un posible votante.");
@@ -132,8 +137,9 @@ public class VotanteServiceImpl implements VotanteService {
 	public VotanteResponse actualizar(Long id, VotanteUpdateRequest request) {
 		Votante votante = obtenerVotanteVisible(id);
 		String documento = normalizarDocumento(request.numeroDocumento());
-		if (votanteRepository.existsByNumeroDocumentoAndIdNot(documento, id)) {
-			throw new ConflictException("Esta persona ya se encuentra registrada en el sistema y está asignada a otro líder.");
+		if (votanteRepository.existsByNumeroDocumentoAndAdministradorIdAndIdNot(
+				documento, votante.getAdministradorId(), id)) {
+			throw new ConflictException("Ya existe un votante con ese documento en su organización.");
 		}
 		votante.setTipoDocumento(request.tipoDocumento());
 		votante.setNumeroDocumento(documento);
@@ -171,7 +177,8 @@ public class VotanteServiceImpl implements VotanteService {
 	public VotanteResponse cambiarLider(Long id, Long nuevoLiderId, String motivo) {
 		verificarAdmin();
 		Votante votante = obtenerVotante(id);
-		Lider nuevoLider = liderRepository.findById(nuevoLiderId)
+		Lider nuevoLider = liderRepository.findByIdAndCabecera_Usuario_Id(
+						nuevoLiderId, votante.getAdministradorId())
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el nuevo líder."));
 		validarLiderActivo(nuevoLider);
 		Lider anterior = votante.getLider();
@@ -220,7 +227,8 @@ public class VotanteServiceImpl implements VotanteService {
 	}
 
 	private Votante obtenerVotante(Long id) {
-		return votanteRepository.findByIdAndFechaEliminacionIsNull(id)
+		return votanteRepository.findByIdAndAdministradorIdAndFechaEliminacionIsNull(
+						id, administradorIdAutenticado())
 				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el posible votante solicitado."));
 	}
 
@@ -244,6 +252,38 @@ public class VotanteServiceImpl implements VotanteService {
 			return null;
 		}
 		return liderAutenticado().getId();
+	}
+
+	private Long administradorIdAutenticado() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null) {
+			throw new AccessDeniedException("Se requiere un usuario autenticado.");
+		}
+		Usuario usuario = usuarioRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el usuario autenticado."));
+		if (usuario.getRol() == Rol.ADMIN) {
+			return usuario.getId();
+		}
+		if (usuario.getRol() == Rol.LIDER) {
+			return liderRepository.findByUsuario_Id(usuario.getId())
+					.map(Lider::getAdministradorId)
+					.orElseThrow(() -> new BusinessRuleException("El usuario autenticado no tiene un líder asociado."));
+		}
+		throw new AccessDeniedException("El rol no tiene acceso a los datos de votantes.");
+	}
+
+	private Usuario administradorAutenticado() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || authentication.getAuthorities().stream()
+				.noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
+			throw new AccessDeniedException("Esta operación requiere permisos de administrador.");
+		}
+		Usuario administrador = usuarioRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el administrador autenticado."));
+		if (administrador.getRol() != Rol.ADMIN) {
+			throw new AccessDeniedException("Esta operación requiere permisos de administrador.");
+		}
+		return administrador;
 	}
 
 	private void verificarAdmin() {

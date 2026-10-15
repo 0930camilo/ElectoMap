@@ -128,10 +128,11 @@ public class VotanteController {
 	@PostMapping("/importaciones/validar")
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<ApiResponse<ImportacionPreviewResponse>> validarImportacion(
-			@RequestParam("archivo") MultipartFile archivo
+			@RequestParam("archivo") MultipartFile archivo,
+			@RequestParam Long liderId
 	) {
 		return ResponseEntity.ok(ApiResponse.success("Validación del archivo completada.",
-				importacionVotantesService.validar(archivo)));
+				importacionVotantesService.validar(archivo, liderId)));
 	}
 
 	@PostMapping("/importaciones")
@@ -146,10 +147,13 @@ public class VotanteController {
 
 	@PostMapping(value = "/importaciones/reporte-errores", produces = "text/csv")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<byte[]> descargarReporteErrores(@RequestParam("archivo") MultipartFile archivo) {
+	public ResponseEntity<byte[]> descargarReporteErrores(
+			@RequestParam("archivo") MultipartFile archivo,
+			@RequestParam Long liderId
+	) {
 		return ResponseEntity.ok()
 				.contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"errores-importacion.csv\"")
-				.body(importacionVotantesService.reporteErrores(archivo));
+				.body(importacionVotantesService.reporteErrores(archivo, liderId));
 	}
 }

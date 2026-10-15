@@ -21,13 +21,15 @@ public interface VotanteRepository extends JpaRepository<Votante, Long>, JpaSpec
 	@EntityGraph(attributePaths = {"lider", "lider.cabecera"})
 	Page<Votante> findAll(Specification<Votante> specification, Pageable pageable);
 
-	boolean existsByNumeroDocumento(String numeroDocumento);
+	boolean existsByNumeroDocumentoAndAdministradorId(String numeroDocumento, Long administradorId);
 
-	boolean existsByNumeroDocumentoAndIdNot(String numeroDocumento, Long id);
+	boolean existsByNumeroDocumentoAndAdministradorIdAndIdNot(
+			String numeroDocumento, Long administradorId, Long id);
 
-	Optional<Votante> findByNumeroDocumentoAndFechaEliminacionIsNull(String numeroDocumento);
+	Optional<Votante> findByNumeroDocumentoAndAdministradorIdAndFechaEliminacionIsNull(
+			String numeroDocumento, Long administradorId);
 
-	Optional<Votante> findByIdAndFechaEliminacionIsNull(Long id);
+	Optional<Votante> findByIdAndAdministradorIdAndFechaEliminacionIsNull(Long id, Long administradorId);
 
 	@Query("""
 			select count(v) from Votante v
@@ -45,10 +47,28 @@ public interface VotanteRepository extends JpaRepository<Votante, Long>, JpaSpec
 	@Query("""
 			select count(v) from Votante v
 			where v.fechaEliminacion is null
+			  and v.lider.cabecera.usuario.username = :username
+			""")
+	long contarVigentesDeAdministrador(@Param("username") String username);
+
+	@Query("""
+			select count(v) from Votante v
+			where v.fechaEliminacion is null
 			  and v.fechaCreacion >= :desde
 			  and (:liderId is null or v.lider.id = :liderId)
 			""")
 	long contarCreadosDesde(@Param("desde") LocalDateTime desde, @Param("liderId") Long liderId);
+
+	@Query("""
+			select count(v) from Votante v
+			where v.fechaEliminacion is null
+			  and v.fechaCreacion >= :desde
+			  and v.lider.cabecera.usuario.username = :username
+			""")
+	long contarCreadosDesdeDeAdministrador(
+			@Param("desde") LocalDateTime desde,
+			@Param("username") String username
+	);
 
 	@Query("""
 			select v.estado as estado, count(v) as total
@@ -59,6 +79,16 @@ public interface VotanteRepository extends JpaRepository<Votante, Long>, JpaSpec
 			order by v.estado
 			""")
 	List<EstadoTotal> contarPorEstado(@Param("liderId") Long liderId);
+
+	@Query("""
+			select v.estado as estado, count(v) as total
+			from Votante v
+			where v.fechaEliminacion is null
+			  and v.lider.cabecera.usuario.username = :username
+			group by v.estado
+			order by v.estado
+			""")
+	List<EstadoTotal> contarPorEstadoDeAdministrador(@Param("username") String username);
 
 	@Query(value = """
 			select c.id as id, c.nombre as nombre, count(v.id) as total
@@ -71,6 +101,17 @@ public interface VotanteRepository extends JpaRepository<Votante, Long>, JpaSpec
 	List<GrupoTotal> contarPorCabecera();
 
 	@Query(value = """
+			select c.id as id, c.nombre as nombre, count(v.id) as total
+			from cabecera c
+			left join lider l on l.cabecera_id = c.id
+			left join votante v on v.lider_id = l.id and v.fecha_eliminacion is null
+			where c.usuario_id = (select u.id from usuario u where u.username = :username)
+			group by c.id, c.nombre
+			order by total desc, c.nombre
+			""", nativeQuery = true)
+	List<GrupoTotal> contarPorCabeceraDeAdministrador(@Param("username") String username);
+
+	@Query(value = """
 			select l.id as id, concat(l.nombres, ' ', l.apellidos) as nombre, count(v.id) as total
 			from lider l
 			left join votante v on v.lider_id = l.id and v.fecha_eliminacion is null
@@ -78,6 +119,17 @@ public interface VotanteRepository extends JpaRepository<Votante, Long>, JpaSpec
 			order by total desc, nombre
 			""", nativeQuery = true)
 	List<GrupoTotal> contarPorLider();
+
+	@Query(value = """
+			select l.id as id, concat(l.nombres, ' ', l.apellidos) as nombre, count(v.id) as total
+			from lider l
+			join cabecera c on c.id = l.cabecera_id
+			left join votante v on v.lider_id = l.id and v.fecha_eliminacion is null
+			where c.usuario_id = (select u.id from usuario u where u.username = :username)
+			group by l.id, l.nombres, l.apellidos
+			order by total desc, nombre
+			""", nativeQuery = true)
+	List<GrupoTotal> contarPorLiderDeAdministrador(@Param("username") String username);
 
 	@Query(value = """
 			select l.id as id, concat(l.nombres, ' ', l.apellidos) as nombre, count(v.id) as total

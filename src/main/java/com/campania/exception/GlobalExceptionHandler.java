@@ -71,9 +71,9 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ResponseEntity<ApiResponse<Void>> handleDataConflict(DataIntegrityViolationException exception) {
-		if (contieneRestriccion(exception, "uk_votante_numero_documento")) {
+		if (contieneRestriccion(exception, "uk_votante_admin_documento")) {
 			return ResponseEntity.status(HttpStatus.CONFLICT)
-					.body(ApiResponse.error("Esta persona ya se encuentra registrada en el sistema y está asignada a otro líder."));
+					.body(ApiResponse.error("Ya existe un votante con ese documento en su organización."));
 		}
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(ApiResponse.error("La operación entra en conflicto con un registro existente."));

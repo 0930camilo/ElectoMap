@@ -2,7 +2,7 @@
 
 API REST construida con Java 17, Spring Boot 3, Spring Security, JWT, Spring Data JPA, Flyway y MySQL.
 
-Las relaciones organizativas son: un administrador puede tener varias cabeceras; cada cabecera pertenece a un solo administrador; cada cabecera puede tener varios líderes y cada líder pertenece a una sola cabecera. Los endpoints administrativos de cabeceras y líderes limitan la consulta y gestión a las cabeceras propiedad del administrador autenticado.
+Las relaciones organizativas son: un administrador puede tener varias cabeceras; cada cabecera pertenece a un solo administrador; cada cabecera puede tener varios líderes y cada líder pertenece a una sola cabecera. Los endpoints administrativos de cabeceras y líderes limitan la consulta y gestión a las cabeceras propiedad del administrador autenticado. Los votantes, usuarios de su organización y registros de auditoría también se filtran por el administrador autenticado; las transferencias de votantes no cruzan organizaciones.
 
 La migración `V4` asigna las cabeceras preexistentes al administrador de menor ID, ya que el esquema anterior no guardaba propietario. Si la base contiene varios administradores y las cabeceras históricas tienen dueños distintos, revisa/corrige esos propietarios antes de operar con ellos.
 
@@ -71,6 +71,6 @@ Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
 
 Los listados aceptan paginación Spring (`page`, `size`, `sort`); el tamaño máximo es 100. `GET /api/votantes` también acepta filtros por documento, nombres, apellidos, teléfono, estado, cabecera y líder. Las consultas de `LIDER` se limitan en el servidor a sus propios votantes.
 
-La importación acepta archivos `.csv` y `.xlsx` de hasta 5 MB. Requiere los encabezados `tipoDocumento`, `numeroDocumento`, `nombres`, `apellidos` y `mesaVotacion`; también admite `telefono`, `direccion`, `barrio`, `estado` y `observaciones`. El número de documento es único globalmente y la importación devuelve errores identificados por fila. La ruta `POST /api/votantes/importaciones/reporte-errores` recibe el archivo multipart con campo `archivo` y descarga como CSV las filas que no pasan la validación previa, sin guardar votantes.
+La importación acepta archivos `.csv` y `.xlsx` de hasta 5 MB. Requiere los encabezados `tipoDocumento`, `numeroDocumento`, `nombres`, `apellidos` y `mesaVotacion`; también admite `telefono`, `direccion`, `barrio`, `estado` y `observaciones`. Los documentos de líderes y votantes son únicos dentro de la organización de un administrador y pueden repetirse en organizaciones distintas. Las rutas de validar, importar y descargar el reporte requieren `liderId` además del archivo multipart `archivo`; el líder debe pertenecer al administrador autenticado. La importación devuelve errores identificados por fila; el reporte descarga las filas que no pasan la validación previa sin guardar votantes.
 
 El alta y la actualización de votantes requieren `tipoDocumento`, `numeroDocumento`, `nombres`, `apellidos` y `mesaVotacion`; los demás datos de contacto y ubicación son opcionales.
