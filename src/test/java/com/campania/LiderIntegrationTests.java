@@ -20,6 +20,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -53,6 +54,9 @@ class LiderIntegrationTests {
 
 	@Autowired
 	private VotanteRepository votanteRepository;
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	private Long cabeceraId;
 
@@ -102,6 +106,49 @@ class LiderIntegrationTests {
 				.andExpect(jsonPath("$.data.username").value("ana.lider"))
 				.andExpect(jsonPath("$.data.cabeceraNombre").value("Centro"))
 				.andExpect(jsonPath("$.data.password").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void adminPuedeRestablecerClaveDelLiderSinExponerlaEnLaRespuesta() throws Exception {
+		mockMvc.perform(post("/api/lideres")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Ana",
+								  "apellidos":"Pérez",
+								  "documento":"DOC-CLAVE",
+								  "username":"lider-clave",
+								  "password":"ClaveInicial123!",
+								  "cabeceraId":%d
+								}
+								""".formatted(cabeceraId)))
+				.andExpect(status().isCreated());
+
+		Usuario usuarioLider = usuarioRepository.findByUsername("lider-clave").orElseThrow();
+		Lider lider = liderRepository.findByUsuario_Id(usuarioLider.getId()).orElseThrow();
+		Long liderId = lider.getId();
+		String claveAnterior = usuarioLider.getPasswordHash();
+
+		mockMvc.perform(put("/api/lideres/{id}", liderId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "nombres":"Ana",
+								  "apellidos":"Pérez",
+								  "documento":"DOC-CLAVE",
+								  "nuevaClave":"ClaveRestablecida123!",
+								  "cabeceraId":%d
+								}
+								""".formatted(cabeceraId)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.nuevaClave").doesNotExist())
+				.andExpect(jsonPath("$.data.password").doesNotExist());
+
+		Usuario actualizado = usuarioRepository.findByUsername("lider-clave").orElseThrow();
+		org.junit.jupiter.api.Assertions.assertNotEquals(claveAnterior, actualizado.getPasswordHash());
+		org.junit.jupiter.api.Assertions.assertTrue(
+				passwordEncoder.matches("ClaveRestablecida123!", actualizado.getPasswordHash()));
 	}
 
 	@Test

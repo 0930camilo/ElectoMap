@@ -111,9 +111,15 @@ public class LiderServiceImpl implements LiderService {
 		lider.getUsuario().setNombres(lider.getNombres());
 		lider.getUsuario().setApellidos(lider.getApellidos());
 		lider.getUsuario().setEmail(normalizarEmail(lider.getEmail()));
+		boolean restablecioClave = request.nuevaClave() != null;
+		if (restablecioClave) {
+			lider.getUsuario().setPasswordHash(passwordEncoder.encode(request.nuevaClave()));
+		}
 		Lider guardado = liderRepository.save(lider);
 		auditoriaService.registrar(AccionAuditoria.ACTUALIZAR, "LIDER", guardado.getId(),
-				"Se actualizaron los datos de un líder.");
+				restablecioClave
+						? "Se actualizaron los datos de un líder y se restableció su clave de acceso."
+						: "Se actualizaron los datos de un líder.");
 		return aResponse(guardado);
 	}
 

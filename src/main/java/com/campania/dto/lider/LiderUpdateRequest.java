@@ -21,6 +21,8 @@ public record LiderUpdateRequest(
 		@Email(message = "El correo electrónico no tiene un formato válido.")
 		@Size(max = 150)
 		String email,
+		@Size(min = 12, max = 72, message = "La nueva clave debe tener entre 12 y 72 caracteres.")
+		String nuevaClave,
 		@NotNull(message = "La cabecera es obligatoria.")
 		Long cabeceraId
 ) {
