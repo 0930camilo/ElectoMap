@@ -271,11 +271,18 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 				data.get("nombres"),
 				data.get("apellidos"),
 				data.get("telefono"),
+				valor(data, "departamentovotacion", "departamento"),
+				valor(data, "municipiovotacion", "municipio"),
 				data.get("direccion"),
 				data.get("barrio"),
 				data.get("mesavotacion"),
 				estado,
 				data.get("observaciones"));
+	}
+
+	private String valor(Map<String, String> data, String clavePrincipal, String alias) {
+		String valor = data.get(clavePrincipal);
+		return valor == null ? data.get(alias) : valor;
 	}
 
 	private void validarEncabezados(List<String> headers) {

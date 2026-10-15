@@ -95,6 +95,9 @@ class VotanteIntegrationTests {
 								  "numeroDocumento":"1234567890",
 								  "nombres":"Juan",
 								  "apellidos":"Pérez",
+								  "departamentoVotacion":"Córdoba",
+								  "municipioVotacion":"Moñitos",
+								  "direccion":"CALLE 22B N° 9-17",
 								  "mesaVotacion":"12",
 								  "estado":"INTERESADO"
 								}
@@ -102,6 +105,10 @@ class VotanteIntegrationTests {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.numeroDocumento").value("1234567890"))
+				.andExpect(jsonPath("$.data.departamentoVotacion").value("Córdoba"))
+				.andExpect(jsonPath("$.data.municipioVotacion").value("Moñitos"))
+				.andExpect(jsonPath("$.data.direccion").value("CALLE 22B N° 9-17"))
+				.andExpect(jsonPath("$.data.email").doesNotExist())
 				.andExpect(jsonPath("$.data.mesaVotacion").value("12"))
 				.andExpect(jsonPath("$.data.liderId").value(primerLiderId));
 	}
@@ -308,9 +315,9 @@ class VotanteIntegrationTests {
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void adminImportaFilasValidasYDevuelveErroresRechazados() throws Exception {
 		MockMultipartFile archivo = crearArchivoCsv("""
-				tipoDocumento,numeroDocumento,nombres,apellidos,mesaVotacion
-				CC,12121212,Ana,Gómez,12
-				CC,12121212,Otra,Persona,12
+				tipoDocumento,numeroDocumento,nombres,apellidos,departamento,municipio,direccion,mesaVotacion
+				CC,12121212,Ana,Gómez,Córdoba,Moñitos,CALLE 22B N° 9-17,12
+				CC,12121212,Otra,Persona,Córdoba,Moñitos,CALLE 22B N° 9-17,12
 				""");
 
 		mockMvc.perform(multipart("/api/votantes/importaciones")
@@ -321,6 +328,10 @@ class VotanteIntegrationTests {
 				.andExpect(jsonPath("$.data.importados").value(1))
 				.andExpect(jsonPath("$.data.rechazados").value(1));
 		org.junit.jupiter.api.Assertions.assertEquals(1, votanteRepository.count());
+		com.campania.entity.Votante importado = votanteRepository.findAll().get(0);
+		org.junit.jupiter.api.Assertions.assertEquals("Córdoba", importado.getDepartamentoVotacion());
+		org.junit.jupiter.api.Assertions.assertEquals("Moñitos", importado.getMunicipioVotacion());
+		org.junit.jupiter.api.Assertions.assertEquals("CALLE 22B N° 9-17", importado.getDireccion());
 	}
 
 	@Test

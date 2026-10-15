@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record VotanteCreateRequest(
 		@NotNull(message = "El tipo de documento es obligatorio.")
@@ -21,6 +22,13 @@ public record VotanteCreateRequest(
 		String apellidos,
 		@Size(max = 30)
 		String telefono,
+		@Schema(description = "Departamento donde está ubicado el puesto de votación.")
+		@Size(max = 100)
+		String departamentoVotacion,
+		@Schema(description = "Municipio donde está ubicado el puesto de votación.")
+		@Size(max = 100)
+		String municipioVotacion,
+		@Schema(description = "Dirección del puesto de votación; no corresponde al domicilio del votante.")
 		@Size(max = 250)
 		String direccion,
 		@Size(max = 150)

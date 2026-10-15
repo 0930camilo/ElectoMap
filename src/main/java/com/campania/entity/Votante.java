@@ -57,6 +57,12 @@ public class Votante extends AuditableEntity {
 	@Column(name = "telefono", length = 30)
 	private String telefono;
 
+	@Column(name = "departamento_votacion", length = 100)
+	private String departamentoVotacion;
+
+	@Column(name = "municipio_votacion", length = 100)
+	private String municipioVotacion;
+
 	@Column(name = "direccion", length = 250)
 	private String direccion;
 

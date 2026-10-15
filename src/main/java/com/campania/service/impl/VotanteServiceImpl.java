@@ -323,6 +323,8 @@ public class VotanteServiceImpl implements VotanteService {
 		votante.setNombres(request.nombres().trim());
 		votante.setApellidos(request.apellidos().trim());
 		votante.setTelefono(request.telefono());
+		votante.setDepartamentoVotacion(normalizarUbicacion(request.departamentoVotacion()));
+		votante.setMunicipioVotacion(normalizarUbicacion(request.municipioVotacion()));
 		votante.setDireccion(request.direccion());
 		votante.setBarrio(request.barrio());
 		votante.setMesaVotacion(request.mesaVotacion().trim());
@@ -333,6 +335,8 @@ public class VotanteServiceImpl implements VotanteService {
 		votante.setNombres(request.nombres().trim());
 		votante.setApellidos(request.apellidos().trim());
 		votante.setTelefono(request.telefono());
+		votante.setDepartamentoVotacion(normalizarUbicacion(request.departamentoVotacion()));
+		votante.setMunicipioVotacion(normalizarUbicacion(request.municipioVotacion()));
 		votante.setDireccion(request.direccion());
 		votante.setBarrio(request.barrio());
 		votante.setMesaVotacion(request.mesaVotacion().trim());
@@ -353,6 +357,8 @@ public class VotanteServiceImpl implements VotanteService {
 				votante.getNombres(),
 				votante.getApellidos(),
 				votante.getTelefono(),
+				votante.getDepartamentoVotacion(),
+				votante.getMunicipioVotacion(),
 				votante.getDireccion(),
 				votante.getBarrio(),
 				votante.getMesaVotacion(),
@@ -364,5 +370,9 @@ public class VotanteServiceImpl implements VotanteService {
 				cabecera.getNombre(),
 				votante.getFechaCreacion(),
 				votante.getFechaActualizacion());
+	}
+
+	private String normalizarUbicacion(String valor) {
+		return valor == null || valor.isBlank() ? null : valor.trim();
 	}
 }
