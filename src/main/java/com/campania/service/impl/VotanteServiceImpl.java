@@ -325,6 +325,7 @@ public class VotanteServiceImpl implements VotanteService {
 		votante.setTelefono(request.telefono());
 		votante.setDepartamentoVotacion(normalizarUbicacion(request.departamentoVotacion()));
 		votante.setMunicipioVotacion(normalizarUbicacion(request.municipioVotacion()));
+		votante.setPuestoVotacion(normalizarUbicacion(request.puestoVotacion()));
 		votante.setDireccion(request.direccion());
 		votante.setBarrio(request.barrio());
 		votante.setMesaVotacion(request.mesaVotacion().trim());
@@ -337,6 +338,7 @@ public class VotanteServiceImpl implements VotanteService {
 		votante.setTelefono(request.telefono());
 		votante.setDepartamentoVotacion(normalizarUbicacion(request.departamentoVotacion()));
 		votante.setMunicipioVotacion(normalizarUbicacion(request.municipioVotacion()));
+		votante.setPuestoVotacion(normalizarUbicacion(request.puestoVotacion()));
 		votante.setDireccion(request.direccion());
 		votante.setBarrio(request.barrio());
 		votante.setMesaVotacion(request.mesaVotacion().trim());
@@ -359,6 +361,7 @@ public class VotanteServiceImpl implements VotanteService {
 				votante.getTelefono(),
 				votante.getDepartamentoVotacion(),
 				votante.getMunicipioVotacion(),
+				votante.getPuestoVotacion(),
 				votante.getDireccion(),
 				votante.getBarrio(),
 				votante.getMesaVotacion(),

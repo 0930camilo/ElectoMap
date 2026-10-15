@@ -97,6 +97,7 @@ class VotanteIntegrationTests {
 								  "apellidos":"Pérez",
 								  "departamentoVotacion":"Córdoba",
 								  "municipioVotacion":"Moñitos",
+								  "puestoVotacion":"I.E. OBDULIO MAYO SCARPETA",
 								  "direccion":"CALLE 22B N° 9-17",
 								  "mesaVotacion":"12",
 								  "estado":"INTERESADO"
@@ -107,6 +108,7 @@ class VotanteIntegrationTests {
 				.andExpect(jsonPath("$.data.numeroDocumento").value("1234567890"))
 				.andExpect(jsonPath("$.data.departamentoVotacion").value("Córdoba"))
 				.andExpect(jsonPath("$.data.municipioVotacion").value("Moñitos"))
+				.andExpect(jsonPath("$.data.puestoVotacion").value("I.E. OBDULIO MAYO SCARPETA"))
 				.andExpect(jsonPath("$.data.direccion").value("CALLE 22B N° 9-17"))
 				.andExpect(jsonPath("$.data.email").doesNotExist())
 				.andExpect(jsonPath("$.data.mesaVotacion").value("12"))
@@ -315,9 +317,9 @@ class VotanteIntegrationTests {
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void adminImportaFilasValidasYDevuelveErroresRechazados() throws Exception {
 		MockMultipartFile archivo = crearArchivoCsv("""
-				tipoDocumento,numeroDocumento,nombres,apellidos,departamento,municipio,direccion,mesaVotacion
-				CC,12121212,Ana,Gómez,Córdoba,Moñitos,CALLE 22B N° 9-17,12
-				CC,12121212,Otra,Persona,Córdoba,Moñitos,CALLE 22B N° 9-17,12
+				tipoDocumento,numeroDocumento,nombres,apellidos,departamento,municipio,puesto,direccion,mesaVotacion
+				CC,12121212,Ana,Gómez,Córdoba,Moñitos,I.E. OBDULIO MAYO SCARPETA,CALLE 22B N° 9-17,12
+				CC,12121212,Otra,Persona,Córdoba,Moñitos,I.E. OBDULIO MAYO SCARPETA,CALLE 22B N° 9-17,12
 				""");
 
 		mockMvc.perform(multipart("/api/votantes/importaciones")
@@ -331,6 +333,7 @@ class VotanteIntegrationTests {
 		com.campania.entity.Votante importado = votanteRepository.findAll().get(0);
 		org.junit.jupiter.api.Assertions.assertEquals("Córdoba", importado.getDepartamentoVotacion());
 		org.junit.jupiter.api.Assertions.assertEquals("Moñitos", importado.getMunicipioVotacion());
+		org.junit.jupiter.api.Assertions.assertEquals("I.E. OBDULIO MAYO SCARPETA", importado.getPuestoVotacion());
 		org.junit.jupiter.api.Assertions.assertEquals("CALLE 22B N° 9-17", importado.getDireccion());
 	}
 

@@ -28,6 +28,9 @@ public record VotanteUpdateRequest(
 		@Schema(description = "Municipio donde está ubicado el puesto de votación.")
 		@Size(max = 100)
 		String municipioVotacion,
+		@Schema(description = "Nombre del puesto de votación.")
+		@Size(max = 150)
+		String puestoVotacion,
 		@Schema(description = "Dirección del puesto de votación; no corresponde al domicilio del votante.")
 		@Size(max = 250)
 		String direccion,

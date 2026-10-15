@@ -273,6 +273,7 @@ public class ImportacionVotantesServiceImpl implements ImportacionVotantesServic
 				data.get("telefono"),
 				valor(data, "departamentovotacion", "departamento"),
 				valor(data, "municipiovotacion", "municipio"),
+				valor(data, "puestovotacion", "puesto"),
 				data.get("direccion"),
 				data.get("barrio"),
 				data.get("mesavotacion"),

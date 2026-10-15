@@ -17,6 +17,8 @@ public record VotanteResponse(
 		String departamentoVotacion,
 		@Schema(description = "Municipio donde está ubicado el puesto de votación.")
 		String municipioVotacion,
+		@Schema(description = "Nombre del puesto de votación.")
+		String puestoVotacion,
 		@Schema(description = "Dirección del puesto de votación; no corresponde al domicilio del votante.")
 		String direccion,
 		String barrio,
