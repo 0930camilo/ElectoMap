@@ -37,8 +37,13 @@ public class CabeceraServiceImpl implements CabeceraService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Page<CabeceraResponse> listar(Pageable pageable) {
-		return cabeceraRepository.findAllByUsuario_Username(administradorAutenticado().getUsername(), pageable)
+	public Page<CabeceraResponse> listar(String nombre, Pageable pageable) {
+		String username = administradorAutenticado().getUsername();
+		Page<Cabecera> cabeceras = nombre == null || nombre.isBlank()
+				? cabeceraRepository.findAllByUsuario_Username(username, pageable)
+				: cabeceraRepository.findAllByUsuario_UsernameAndNombreContainingIgnoreCase(
+						username, nombre.trim(), pageable);
+		return cabeceras
 				.map(this::aResponse);
 	}
 

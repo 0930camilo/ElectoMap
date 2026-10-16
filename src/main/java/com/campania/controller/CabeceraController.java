@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,9 +31,12 @@ public class CabeceraController {
 	private final CabeceraService cabeceraService;
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<PageResponse<CabeceraResponse>>> listar(Pageable pageable) {
+	public ResponseEntity<ApiResponse<PageResponse<CabeceraResponse>>> listar(
+			@RequestParam(required = false) String nombre,
+			Pageable pageable
+	) {
 		return ResponseEntity.ok(ApiResponse.success("Cabeceras consultadas correctamente.",
-				PageResponse.from(cabeceraService.listar(pageable))));
+				PageResponse.from(cabeceraService.listar(nombre, pageable))));
 	}
 
 	@GetMapping("/{id}")

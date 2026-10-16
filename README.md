@@ -61,7 +61,7 @@ Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
 | Recurso | Rutas principales | Acceso |
 | --- | --- | --- |
 | Sesión | `POST /api/auth/login` | Público |
-| Cabeceras | `GET/POST /api/cabeceras`, `GET/PUT /api/cabeceras/{id}`, `PATCH /api/cabeceras/{id}/estado` | Consulta autenticada; administración `ADMIN` |
+| Cabeceras | `GET/POST /api/cabeceras`, `GET/PUT /api/cabeceras/{id}`, `PATCH /api/cabeceras/{id}/estado` | `ADMIN`; el listado admite filtro parcial y sin distinción de mayúsculas con `nombre` |
 | Líderes | `GET/POST /api/lideres`, `GET/PUT /api/lideres/{id}`, `PATCH /api/lideres/{id}/estado`, `GET /api/lideres/me` | Gestión `ADMIN`; perfil propio `LIDER`; el administrador puede restablecer la clave del líder al actualizarlo |
 | Posibles votantes | `GET/POST /api/votantes`, `POST /api/votantes/administrador`, `GET /api/votantes/{id}`, `GET /api/votantes/documento/{documento}`, `PUT /api/votantes/{id}`, `PATCH /api/votantes/{id}/estado` | Consulta autenticada; registro `LIDER` o `ADMIN` (para `ADMIN`, asigna por documento del líder) |
 | Asignaciones e importación | `PUT /api/votantes/{id}/lider`, `GET /api/votantes/{id}/historial-asignaciones`, `DELETE /api/votantes/{id}`, `POST /api/votantes/importaciones/validar`, `POST /api/votantes/importaciones`, `POST /api/votantes/importaciones/reporte-errores` | Solo `ADMIN`; la reasignación identifica al líder por `liderDocumento` y el historial solo devuelve líder anterior, líder nuevo, motivo y fecha |
@@ -70,7 +70,7 @@ Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
 | Paneles | `GET /api/dashboard/admin`, `GET /api/dashboard/lider` | `ADMIN` o `LIDER`, respectivamente |
 | Auditoría | `GET /api/auditoria` | Solo `ADMIN` |
 
-Los listados aceptan paginación Spring (`page`, `size`, `sort`); el tamaño máximo es 100. `GET /api/votantes` también acepta filtros por documento de votante, nombres, apellidos, teléfono, estado, cabecera y documento del líder (`liderDocumento`); el documento del líder se busca dentro de la organización del administrador autenticado. Las consultas de `LIDER` se limitan en el servidor a sus propios votantes.
+Los listados aceptan paginación Spring (`page`, `size`, `sort`); el tamaño máximo es 100. `GET /api/cabeceras` acepta el parámetro opcional `nombre` para buscar coincidencias parciales, sin distinguir mayúsculas y minúsculas (por ejemplo, `?nombre=centro` puede devolver “Centro Norte” y “Centro Sur”). `GET /api/votantes` también acepta filtros por documento de votante, nombres, apellidos, teléfono, estado, cabecera y documento del líder (`liderDocumento`); el documento del líder se busca dentro de la organización del administrador autenticado. Las consultas de `LIDER` se limitan en el servidor a sus propios votantes.
 
 `PUT /api/perfil/me` recibe nombres, apellidos, username y opcionalmente email y teléfono (el teléfono solo se aplica a líderes). Si email o teléfono se omiten, se conserva el valor actual; enviarlos vacíos los borra. Para cambiar la clave, envíe `nuevaClave`; basta con tener una sesión autenticada. Cambiar usuario o clave requiere iniciar sesión nuevamente con las credenciales actualizadas. El rol y el documento del líder no se pueden modificar desde este endpoint.
 

@@ -101,6 +101,30 @@ class CabeceraIntegrationTests {
 
 	@Test
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorPuedeFiltrarCabecerasPorNombreParcialSinDistinguirMayusculas() throws Exception {
+		for (String nombre : new String[]{"Centro Norte", "Centro Sur", "Occidente"}) {
+			mockMvc.perform(post("/api/cabeceras")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("""
+									{"nombre":"%s","descripcion":"Zona","zona":"Urbana"}
+									""".formatted(nombre)))
+					.andExpect(status().isCreated());
+		}
+
+		mockMvc.perform(get("/api/cabeceras?page=0&size=10&nombre=centro"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalElements").value(2))
+				.andExpect(jsonPath("$.data.content[0].nombre").value("Centro Norte"))
+				.andExpect(jsonPath("$.data.content[1].nombre").value("Centro Sur"));
+
+		mockMvc.perform(get("/api/cabeceras?page=0&size=10").param("nombre", "Norte"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalElements").value(1))
+				.andExpect(jsonPath("$.data.content[0].nombre").value("Centro Norte"));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void administradorSoloConsultaSusCabeceras() throws Exception {
 		Usuario otroAdmin = new Usuario();
 		otroAdmin.setNombres("Otro");

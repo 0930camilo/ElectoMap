@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface CabeceraService {
 
-	Page<CabeceraResponse> listar(Pageable pageable);
+	Page<CabeceraResponse> listar(String nombre, Pageable pageable);
 
 	CabeceraResponse buscarPorId(Long id);
 

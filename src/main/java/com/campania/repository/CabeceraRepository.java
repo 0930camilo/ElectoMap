@@ -11,6 +11,11 @@ public interface CabeceraRepository extends JpaRepository<Cabecera, Long> {
 
 	Page<Cabecera> findAllByUsuario_Username(String username, Pageable pageable);
 
+	Page<Cabecera> findAllByUsuario_UsernameAndNombreContainingIgnoreCase(
+			String username,
+			String nombre,
+			Pageable pageable);
+
 	Optional<Cabecera> findByIdAndUsuario_Username(Long id, String username);
 
 	long countByEstado(EstadoCabecera estado);
