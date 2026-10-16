@@ -69,6 +69,13 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.badRequest().body(ApiResponse.error(exception.getMessage()));
 	}
 
+	@ExceptionHandler(OcrUnavailableException.class)
+	public ResponseEntity<ApiResponse<Void>> handleOcrUnavailable(OcrUnavailableException exception) {
+		LOGGER.error("El servicio OCR no está disponible.", exception);
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+				.body(ApiResponse.error(exception.getMessage()));
+	}
+
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ResponseEntity<ApiResponse<Void>> handleDataConflict(DataIntegrityViolationException exception) {
 		if (contieneRestriccion(exception, "uk_votante_admin_documento")) {
