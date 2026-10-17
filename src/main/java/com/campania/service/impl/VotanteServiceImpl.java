@@ -17,6 +17,7 @@ import com.campania.entity.Votante;
 import com.campania.exception.BusinessRuleException;
 import com.campania.exception.ConflictException;
 import com.campania.exception.ResourceNotFoundException;
+import com.campania.mapper.VotanteMapper;
 import com.campania.repository.HistorialAsignacionRepository;
 import com.campania.repository.LiderRepository;
 import com.campania.repository.UsuarioRepository;
@@ -47,6 +48,7 @@ public class VotanteServiceImpl implements VotanteService {
 	private final UsuarioRepository usuarioRepository;
 	private final HistorialAsignacionRepository historialAsignacionRepository;
 	private final AuditoriaService auditoriaService;
+	private final VotanteMapper votanteMapper;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -363,29 +365,7 @@ public class VotanteServiceImpl implements VotanteService {
 	}
 
 	private VotanteResponse aResponse(Votante votante) {
-		Lider lider = votante.getLider();
-		Cabecera cabecera = lider.getCabecera();
-		return new VotanteResponse(
-				votante.getId(),
-				votante.getTipoDocumento(),
-				votante.getNumeroDocumento(),
-				votante.getNombres(),
-				votante.getApellidos(),
-				votante.getTelefono(),
-				votante.getDepartamentoVotacion(),
-				votante.getMunicipioVotacion(),
-				votante.getPuestoVotacion(),
-				votante.getDireccion(),
-				votante.getBarrio(),
-				votante.getMesaVotacion(),
-				votante.getEstado(),
-				votante.getObservaciones(),
-				lider.getId(),
-				lider.getNombres() + " " + lider.getApellidos(),
-				cabecera.getId(),
-				cabecera.getNombre(),
-				votante.getFechaCreacion(),
-				votante.getFechaActualizacion());
+		return votanteMapper.toResponse(votante);
 	}
 
 	private String normalizarUbicacion(String valor) {

@@ -59,6 +59,7 @@ public class SecurityConfig {
 				.authenticationProvider(authenticationProvider)
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/api/auth/login", "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(errors -> errors
 						.authenticationEntryPoint((request, response, exception) -> {

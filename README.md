@@ -1,53 +1,58 @@
-# Gestión de campaña electoral - backend
+# Backend de gestión de campaña electoral
 
-API REST construida con Java 17, Spring Boot 3, Spring Security, JWT, Spring Data JPA, Flyway y MySQL.
+API REST construida con Java 17, Spring Boot 3.x, Maven, Spring Security, JWT, Spring Data JPA y MySQL. Conserva las rutas y reglas de acceso existentes. La organización principal está bajo `com.campania` (`config`, `controller`, `dto`, `entity`, `exception`, `mapper`, `repository`, `security`, `service`, `specification` y `util`).
 
-Las relaciones organizativas son: un administrador puede tener varias cabeceras; cada cabecera pertenece a un solo administrador; cada cabecera puede tener varios líderes y cada líder pertenece a una sola cabecera. Los endpoints administrativos de cabeceras y líderes limitan la consulta y gestión a las cabeceras propiedad del administrador autenticado. Los votantes, usuarios de su organización y registros de auditoría también se filtran por el administrador autenticado; las transferencias de votantes no cruzan organizaciones.
-
-La migración `V4` asigna las cabeceras preexistentes al administrador de menor ID, ya que el esquema anterior no guardaba propietario. Si la base contiene varios administradores y las cabeceras históricas tienen dueños distintos, revisa/corrige esos propietarios antes de operar con ellos.
+Hibernate mantiene el esquema con `spring.jpa.hibernate.ddl-auto=update`; Flyway, Liquibase y scripts SQL de migración no se usan. Para una base ya existente, respalda los datos antes de iniciar: Hibernate actualiza columnas y tablas de forma no destructiva, pero no sustituye cambios de datos de migraciones previas. El bootstrap de administrador opcional crea un usuario inicial mediante JPA, sin insertar credenciales por defecto.
 
 ## Requisitos
 
 - JDK 17 o posterior.
-- MySQL 8.
-- PowerShell (o una terminal compatible con Maven Wrapper).
+- Maven (incluido mediante Maven Wrapper).
+- MySQL 8, o Docker con Docker Compose.
 
-## Configuración local
+## Ejecución con Docker Compose
 
-1. Crear la base de datos antes de iniciar la aplicación:
+1. Copia `.env.example` a `.env` y reemplaza `JWT_SECRET` y `BOOTSTRAP_ADMIN_PASSWORD` por valores propios seguros. El administrador inicial se crea solo si `BOOTSTRAP_ADMIN_ENABLED=true`.
+2. Ejecuta `docker compose up --build`.
+3. La API queda disponible en `http://localhost:8080`; MySQL usa la base `sigiv`, usuario `appuser`, contraseña `DB_PASSWORD` y volumen persistente. El estado de la base puede consultarse en `http://localhost:8080/actuator/health`.
 
-   ```sql
-   CREATE DATABASE Electo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
+## Ejecución local
 
-2. Configurar estas variables de entorno. `JWT_SECRET` debe contener al menos 32 bytes; use un valor aleatorio propio y no lo incluya en el repositorio.
+Configura las variables requeridas antes de iniciar (PowerShell):
 
-   ```powershell
-   $env:DB_URL = "jdbc:mysql://localhost:3306/Electo?serverTimezone=UTC"
-   $env:DB_USER = "root"
-   $env:DB_PASSWORD = "<contraseña-local>"
-   $env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
-   ```
+```powershell
+$env:DB_URL = "jdbc:mysql://localhost:3306/sigiv?serverTimezone=UTC"
+$env:DB_USER = "appuser"
+$env:DB_PASSWORD = "<contraseña-local>"
+$env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
+$env:BOOTSTRAP_ADMIN_ENABLED = "true"
+$env:BOOTSTRAP_ADMIN_USERNAME = "admin"
+$env:BOOTSTRAP_ADMIN_PASSWORD = "<contraseña-segura>"
+.\mvnw.cmd spring-boot:run
+```
 
-   También se pueden configurar `PORT` (por defecto `8080`), `JWT_EXPIRATION_MS` (por defecto un día) y `CORS_ALLOWED_ORIGINS` (por defecto `http://localhost:4200`). Flyway aplica automáticamente las migraciones de `src/main/resources/db/migration`; Hibernate valida el esquema y no lo crea ni modifica.
+Hibernate crea y actualiza las tablas al iniciar. La cuenta inicial es opcional; si ya existe el nombre configurado, no se modifica. También se pueden configurar `PORT` (8080 por defecto), `JWT_EXPIRATION_MS`, `CORS_ALLOWED_ORIGINS`, `OCR_TESSDATA_PATH` y `OCR_LANGUAGES`.
 
-3. Iniciar:
+### Git Bash / MINGW64
 
-   ```powershell
-   .\mvnw.cmd spring-boot:run
-   ```
+Define las variables requeridas en la misma terminal antes de ejecutar Maven. Ajusta URL, usuario y contraseña para que coincidan con tu instancia local de MySQL; genera un secreto JWT aleatorio y no lo publiques:
 
-   La migración de datos de desarrollo crea `admin` y `lider.prueba`, ambas con contraseña inicial `Cambiar123!`, además de una cabecera y un líder de prueba. Cambie o desactive esas cuentas antes de usar datos reales; no reutilice estas credenciales en producción.
+```bash
+export DB_URL='jdbc:mysql://localhost:3306/sigiv?serverTimezone=UTC'
+export DB_USER='appuser'
+export DB_PASSWORD='apppass'
+export JWT_SECRET="$(openssl rand -base64 48)"
+mvn clean spring-boot:run -U
+```
 
-## Pruebas
+Estas variables solo duran mientras siga abierta esa terminal. Si MySQL no está iniciado, levántalo primero o usa `docker compose up --build` después de configurar `.env`.
+
+## Pruebas y empaquetado
+
+Las pruebas usan H2 en memoria y no requieren MySQL:
 
 ```powershell
 .\mvnw.cmd test
-```
-
-Las pruebas usan H2 en memoria y no requieren MySQL. Para el empaquetado:
-
-```powershell
 .\mvnw.cmd package
 ```
 
