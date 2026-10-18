@@ -45,18 +45,33 @@ public class GlobalExceptionHandler {
 	}
 
 	@ExceptionHandler(LoginFailedException.class)
-	public ResponseEntity<ApiResponse<Void>> handleLoginFailed(LoginFailedException exception) {
+	public ResponseEntity<ApiResponse<LoginAttemptInfo>> handleLoginFailed(LoginFailedException exception) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 				.header(LoginAttemptHeaders.REMAINING, Integer.toString(exception.getRemainingAttempts()))
-				.body(ApiResponse.error("Credenciales inválidas."));
+				.body(new ApiResponse<>(false, "Credenciales inválidas.",
+						new LoginAttemptInfo(exception.getRemainingAttempts())));
 	}
 
 	@ExceptionHandler(LoginBlockedException.class)
-	public ResponseEntity<ApiResponse<Void>> handleLoginBlocked(LoginBlockedException exception) {
+	public ResponseEntity<ApiResponse<LoginBlockedInfo>> handleLoginBlocked(LoginBlockedException exception) {
+		long retryAfterSeconds = exception.getRetryAfterSeconds();
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-				.header(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()))
+				.header(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds))
 				.header(LoginAttemptHeaders.REMAINING, "0")
-				.body(ApiResponse.error("Demasiados intentos. Intente nuevamente más tarde."));
+				.body(new ApiResponse<>(false, "Demasiados intentos. Intente nuevamente más tarde.",
+						new LoginBlockedInfo(0, retryAfterSeconds, retryAfterSeconds / 60,
+								retryAfterSeconds % 60)));
+	}
+
+	public record LoginAttemptInfo(int remainingAttempts) {
+	}
+
+	public record LoginBlockedInfo(
+			int remainingAttempts,
+			long retryAfterTotalSeconds,
+			long retryAfterMinutes,
+			long retryAfterSeconds
+	) {
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

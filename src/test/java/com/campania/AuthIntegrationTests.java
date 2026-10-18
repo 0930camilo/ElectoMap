@@ -87,9 +87,9 @@ class AuthIntegrationTests {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.message").value("Credenciales inválidas."))
+				.andExpect(jsonPath("$.data.remainingAttempts").value(4))
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
-						.string("X-Login-Attempts-Remaining", "4"))
-				.andExpect(jsonPath("$.data").doesNotExist());
+						.string("X-Login-Attempts-Remaining", "4"));
 	}
 
 	@Test
@@ -103,6 +103,7 @@ class AuthIntegrationTests {
 							.content(body))
 					.andExpect(status().isUnauthorized())
 					.andExpect(jsonPath("$.message").value("Credenciales inválidas."))
+					.andExpect(jsonPath("$.data.remainingAttempts").value(4 - attempt))
 					.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
 							.string("X-Login-Attempts-Remaining", Integer.toString(4 - attempt)));
 		}
@@ -112,6 +113,10 @@ class AuthIntegrationTests {
 						.content(body))
 				.andExpect(status().isTooManyRequests())
 				.andExpect(jsonPath("$.message").value("Demasiados intentos. Intente nuevamente más tarde."))
+				.andExpect(jsonPath("$.data.remainingAttempts").value(0))
+				.andExpect(jsonPath("$.data.retryAfterTotalSeconds").isNumber())
+				.andExpect(jsonPath("$.data.retryAfterMinutes").isNumber())
+				.andExpect(jsonPath("$.data.retryAfterSeconds").isNumber())
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
 						.string("X-Login-Attempts-Remaining", "0"))
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
