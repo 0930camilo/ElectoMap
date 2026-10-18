@@ -31,7 +31,7 @@ $env:BOOTSTRAP_ADMIN_PASSWORD = "<contraseña-segura>"
 .\mvnw.cmd spring-boot:run
 ```
 
-Hibernate crea y actualiza las tablas al iniciar. La cuenta inicial es opcional; si ya existe el nombre configurado, no se modifica. También se pueden configurar `PORT` (8080 por defecto), `JWT_EXPIRATION_MS`, `CORS_ALLOWED_ORIGINS`, `OCR_TESSDATA_PATH` y `OCR_LANGUAGES`.
+Hibernate crea y actualiza las tablas al iniciar. La cuenta inicial es opcional; si ya existe el nombre configurado, no se modifica. También se pueden configurar `PORT` (8080 por defecto), `JWT_EXPIRATION_MS`, `CORS_ALLOWED_ORIGINS`, `OCR_TESSDATA_PATH` y `OCR_LANGUAGES`. El backend permite siempre los orígenes locales estándar de Capacitor (`https://localhost`, `http://localhost` y `capacitor://localhost`); `CORS_ALLOWED_ORIGINS` agrega los orígenes web que necesite la aplicación.
 
 ### Git Bash / MINGW64
 
