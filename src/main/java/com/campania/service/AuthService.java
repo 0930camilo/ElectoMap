@@ -1,9 +1,9 @@
 package com.campania.service;
 
 import com.campania.dto.auth.LoginRequest;
-import com.campania.dto.auth.LoginResponse;
+import com.campania.dto.auth.LoginResult;
 
 public interface AuthService {
 
-	LoginResponse login(LoginRequest request, String clientIp);
+	LoginResult login(LoginRequest request, String clientIp);
 }

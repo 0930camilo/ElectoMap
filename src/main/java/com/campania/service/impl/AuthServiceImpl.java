@@ -2,9 +2,11 @@ package com.campania.service.impl;
 
 import com.campania.dto.auth.LoginRequest;
 import com.campania.dto.auth.LoginResponse;
+import com.campania.dto.auth.LoginResult;
 import com.campania.entity.Usuario;
 import com.campania.repository.UsuarioRepository;
 import com.campania.security.JwtService;
+import com.campania.security.LoginFailedException;
 import com.campania.security.UsuarioPrincipal;
 import com.campania.service.AuthService;
 import com.campania.service.AuditoriaService;
@@ -31,7 +33,7 @@ public class AuthServiceImpl implements AuthService {
 	private final LoginAttemptService loginAttemptService;
 
 	@Override
-	public LoginResponse login(LoginRequest request, String clientIp) {
+	public LoginResult login(LoginRequest request, String clientIp) {
 		loginAttemptService.assertAllowed(request.username(), clientIp);
 		Authentication authentication;
 		try {
@@ -39,19 +41,20 @@ public class AuthServiceImpl implements AuthService {
 					UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password()));
 		} catch (BadCredentialsException | DisabledException | LockedException
 				 | AccountExpiredException | CredentialsExpiredException exception) {
-			loginAttemptService.recordFailure(request.username(), clientIp);
-			throw new BadCredentialsException("Credenciales inválidas.");
+			int remainingAttempts = loginAttemptService.recordFailure(request.username(), clientIp);
+			throw new LoginFailedException(remainingAttempts);
 		} catch (AuthenticationException exception) {
 			throw exception;
 		}
-		loginAttemptService.reset(request.username());
+		int remainingAttempts = loginAttemptService.reset(request.username());
 		UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
 		Usuario usuario = usuarioRepository.findById(principal.getId())
 				.orElseThrow(() -> new IllegalStateException("El usuario autenticado ya no existe."));
 
 		String token = jwtService.generateToken(principal, usuario.getRol());
 		auditoriaService.registrarLogin(usuario);
-		return new LoginResponse(token, "Bearer",
+		LoginResponse response = new LoginResponse(token, "Bearer",
 				new LoginResponse.AuthenticatedUser(usuario.getId(), usuario.getUsername(), usuario.getRol()));
+		return new LoginResult(response, remainingAttempts);
 	}
 }

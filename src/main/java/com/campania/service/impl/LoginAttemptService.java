@@ -52,7 +52,7 @@ public class LoginAttemptService {
 	}
 
 	@Transactional
-	public void recordFailure(String username, String clientIp) {
+	public int recordFailure(String username, String clientIp) {
 		loginAttemptRepository.findByKeyForUpdate(LoginAttemptLockInitializer.LOCK_KEY)
 				.orElseThrow(() -> new IllegalStateException("No existe el bloqueo transaccional de autenticación."));
 
@@ -73,13 +73,15 @@ public class LoginAttemptService {
 		loginAttemptRepository.save(attempt);
 		LOGGER.warn("login_failed username_key={} ip={} attempt={} reason=credentials_rejected",
 				key, clientIp, attempt.getFailedAttempts());
+		return Math.max(0, maxAttempts - attempt.getFailedAttempts());
 	}
 
 	@Transactional
-	public void reset(String username) {
+	public int reset(String username) {
 		loginAttemptRepository.findByKeyForUpdate(LoginAttemptLockInitializer.LOCK_KEY)
 				.orElseThrow(() -> new IllegalStateException("No existe el bloqueo transaccional de autenticación."));
 		loginAttemptRepository.deleteById(createKey(username));
+		return maxAttempts;
 	}
 
 	private boolean isLocked(LoginAttempt attempt, Instant now) {

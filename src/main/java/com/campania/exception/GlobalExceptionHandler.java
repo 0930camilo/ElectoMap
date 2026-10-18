@@ -1,7 +1,9 @@
 package com.campania.exception;
 
 import com.campania.dto.ApiResponse;
+import com.campania.security.LoginAttemptHeaders;
 import com.campania.security.LoginBlockedException;
+import com.campania.security.LoginFailedException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -42,10 +44,18 @@ public class GlobalExceptionHandler {
 				.body(ApiResponse.error("Credenciales inválidas."));
 	}
 
+	@ExceptionHandler(LoginFailedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleLoginFailed(LoginFailedException exception) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+				.header(LoginAttemptHeaders.REMAINING, Integer.toString(exception.getRemainingAttempts()))
+				.body(ApiResponse.error("Credenciales inválidas."));
+	}
+
 	@ExceptionHandler(LoginBlockedException.class)
 	public ResponseEntity<ApiResponse<Void>> handleLoginBlocked(LoginBlockedException exception) {
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
 				.header(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()))
+				.header(LoginAttemptHeaders.REMAINING, "0")
 				.body(ApiResponse.error("Demasiados intentos. Intente nuevamente más tarde."));
 	}
 

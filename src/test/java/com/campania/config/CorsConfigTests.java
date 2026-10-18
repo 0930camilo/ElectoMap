@@ -25,6 +25,7 @@ class CorsConfigTests {
 		assertEquals("https://web.example.com", configuration.checkOrigin("https://web.example.com"));
 		assertEquals("http://localhost:3000", configuration.checkOrigin("http://localhost:3000"));
 		assertTrue(configuration.getAllowedMethods().contains("OPTIONS"));
+		assertTrue(configuration.getExposedHeaders().contains("X-Login-Attempts-Remaining"));
 		assertNotNull(configuration.checkHeaders(List.of("Content-Type", "Authorization")));
 	}
 }
