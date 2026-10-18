@@ -1,10 +1,13 @@
 package com.campania;
 
 import com.campania.entity.EstadoUsuario;
+import com.campania.entity.LoginAttempt;
 import com.campania.entity.Rol;
 import com.campania.entity.Usuario;
+import com.campania.config.LoginAttemptLockInitializer;
 import com.campania.repository.UsuarioRepository;
 import com.campania.repository.AuditoriaRepository;
+import com.campania.repository.LoginAttemptRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,10 +41,16 @@ class AuthIntegrationTests {
 	@Autowired
 	private AuditoriaRepository auditoriaRepository;
 
+	@Autowired
+	private LoginAttemptRepository loginAttemptRepository;
+
 	@BeforeEach
 	void prepararUsuario() {
 		auditoriaRepository.deleteAll();
+		loginAttemptRepository.deleteAll();
 		usuarioRepository.deleteAll();
+		loginAttemptRepository.saveAndFlush(
+				new LoginAttempt(LoginAttemptLockInitializer.LOCK_KEY, java.time.Instant.now()));
 		Usuario usuario = new Usuario();
 		usuario.setNombres("Admin");
 		usuario.setApellidos("Prueba");
@@ -75,7 +84,57 @@ class AuthIntegrationTests {
 								"""))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.message").value("Credenciales inválidas."))
 				.andExpect(jsonPath("$.data").doesNotExist());
+	}
+
+	@Test
+	void loginBloqueaDespuesDeCincoIntentosFallidos() throws Exception {
+		String username = "inexistente-" + java.util.UUID.randomUUID();
+		String body = "{\"username\":\"" + username + "\",\"password\":\"incorrecta\"}";
+
+		for (int attempt = 0; attempt < 5; attempt++) {
+			mockMvc.perform(post("/api/auth/login")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content(body))
+					.andExpect(status().isUnauthorized())
+					.andExpect(jsonPath("$.message").value("Credenciales inválidas."));
+		}
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.message").value("Demasiados intentos. Intente nuevamente más tarde."))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+						.exists("Retry-After"));
+	}
+
+	@Test
+	void inicioExitosoRestableceElContadorDeIntentos() throws Exception {
+		for (int attempt = 0; attempt < 4; attempt++) {
+			mockMvc.perform(post("/api/auth/login")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("""
+									{"username":"admin-test","password":"incorrecta"}
+									"""))
+					.andExpect(status().isUnauthorized());
+		}
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"username":"admin-test","password":"ClaveSegura123!"}
+								"""))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"username":"admin-test","password":"incorrecta"}
+								"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.message").value("Credenciales inválidas."));
 	}
 
 	@Test

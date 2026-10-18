@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +23,11 @@ public class AuthController {
 
 	@PostMapping("/login")
 	@Operation(security = {})
-	public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
-		return ResponseEntity.ok(ApiResponse.success("Inicio de sesión exitoso", authService.login(request)));
+	public ResponseEntity<ApiResponse<LoginResponse>> login(
+			@Valid @RequestBody LoginRequest request,
+			HttpServletRequest httpRequest
+	) {
+		return ResponseEntity.ok(ApiResponse.success("Inicio de sesión exitoso",
+				authService.login(request, httpRequest.getRemoteAddr())));
 	}
 }

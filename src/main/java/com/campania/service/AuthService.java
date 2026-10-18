@@ -5,5 +5,5 @@ import com.campania.dto.auth.LoginResponse;
 
 public interface AuthService {
 
-	LoginResponse login(LoginRequest request);
+	LoginResponse login(LoginRequest request, String clientIp);
 }

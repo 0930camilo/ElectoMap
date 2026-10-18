@@ -1,8 +1,10 @@
 package com.campania.exception;
 
 import com.campania.dto.ApiResponse;
+import com.campania.security.LoginBlockedException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
@@ -37,7 +39,14 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler({BadCredentialsException.class, DisabledException.class})
 	public ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure() {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-				.body(ApiResponse.error("Usuario o contraseña incorrectos, o cuenta inactiva."));
+				.body(ApiResponse.error("Credenciales inválidas."));
+	}
+
+	@ExceptionHandler(LoginBlockedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleLoginBlocked(LoginBlockedException exception) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.header(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()))
+				.body(ApiResponse.error("Demasiados intentos. Intente nuevamente más tarde."));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
