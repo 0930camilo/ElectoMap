@@ -33,6 +33,18 @@ public class PerfilServiceImpl implements PerfilService {
 	private final AuditoriaService auditoriaService;
 
 	@Override
+	@Transactional(readOnly = true)
+	public PerfilResponse buscarAutenticado() {
+		Usuario usuario = usuarioAutenticado();
+		Lider lider = usuario.getRol() == Rol.LIDER
+				? liderRepository.findByUsuario_Id(usuario.getId())
+						.orElseThrow(() -> new ResourceNotFoundException(
+								"No se encontró el perfil de líder asociado al usuario."))
+				: null;
+		return respuestaPerfil(usuario, lider);
+	}
+
+	@Override
 	public PerfilResponse actualizar(PerfilUpdateRequest request) {
 		Usuario usuario = usuarioAutenticado();
 		String username = request.username().trim();
@@ -69,6 +81,10 @@ public class PerfilServiceImpl implements PerfilService {
 		}
 
 		usuarioRepository.save(usuario);
+		return respuestaPerfil(usuario, lider);
+	}
+
+	private PerfilResponse respuestaPerfil(Usuario usuario, Lider lider) {
 		return new PerfilResponse(
 				usuario.getNombres(),
 				usuario.getApellidos(),

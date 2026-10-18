@@ -25,6 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -206,6 +207,19 @@ class LiderIntegrationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.email").value("lider@example.com"))
 				.andExpect(jsonPath("$.data.telefono").value("3001234567"));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void administradorPuedeConsultarSuPerfilAutenticado() throws Exception {
+		mockMvc.perform(get("/api/perfil/me"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.nombres").value("Admin"))
+				.andExpect(jsonPath("$.data.apellidos").value("Prueba"))
+				.andExpect(jsonPath("$.data.username").value("test-admin"))
+				.andExpect(jsonPath("$.data.rol").value("ADMIN"))
+				.andExpect(jsonPath("$.data.password").doesNotExist());
 	}
 
 	@Test

@@ -5,5 +5,7 @@ import com.campania.dto.usuario.PerfilUpdateRequest;
 
 public interface PerfilService {
 
+	PerfilResponse buscarAutenticado();
+
 	PerfilResponse actualizar(PerfilUpdateRequest request);
 }
