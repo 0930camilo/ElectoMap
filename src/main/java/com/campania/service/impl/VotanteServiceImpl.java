@@ -27,7 +27,9 @@ import com.campania.service.VotanteService;
 import com.campania.specification.VotanteSpecifications;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -73,10 +75,14 @@ public class VotanteServiceImpl implements VotanteService {
 							"No se encontró un líder con ese documento en su organización."));
 		}
 		Long filtroCabecera = liderScope == null ? cabeceraId : null;
+		Pageable pageableOrdenado = pageable.getSort().isUnsorted()
+				? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+						Sort.by(Sort.Order.desc("fechaCreacion"), Sort.Order.desc("id")))
+				: pageable;
 		return votanteRepository.findAll(
 						VotanteSpecifications.buscar(numeroDocumento, nombres, apellidos, telefono,
 								estado, filtroCabecera, filtroLider, administradorId),
-						pageable)
+						pageableOrdenado)
 				.map(this::aResponse);
 	}
 
@@ -116,20 +122,40 @@ public class VotanteServiceImpl implements VotanteService {
 
 	@Override
 	public VotanteResponse registrarParaLiderImportacion(Long liderId, VotanteCreateRequest request) {
-		long administradorId = validarDestinoImportacion(liderId);
-		Lider lider = liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administradorId)
-				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el líder de destino."));
-		return crearParaLider(lider, request);
+		return crearParaLider(resolverLiderDestinoImportacion(liderId), request);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public long validarDestinoImportacion(Long liderId) {
-		Usuario administrador = administradorAutenticado();
-		Lider lider = liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administrador.getId())
-				.orElseThrow(() -> new ResourceNotFoundException("No se encontró el líder de destino."));
+		Lider lider = resolverLiderDestinoImportacion(liderId);
 		validarLiderActivo(lider);
-		return administrador.getId();
+		return lider.getCabecera().getUsuario().getId();
+	}
+
+	private Lider resolverLiderDestinoImportacion(Long liderId) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null) {
+			throw new AccessDeniedException("Se requiere un usuario autenticado.");
+		}
+		if (authentication.getAuthorities().stream()
+				.anyMatch(authority -> authority.getAuthority().equals("ROLE_LIDER"))) {
+			Lider lider = liderAutenticado();
+			if (liderId != null && !lider.getId().equals(liderId)) {
+				throw new AccessDeniedException("Un líder solo puede importar votantes para sí mismo.");
+			}
+			return lider;
+		}
+		if (authentication.getAuthorities().stream()
+				.anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
+			if (liderId == null) {
+				throw new BusinessRuleException("Debe seleccionar un líder de destino.");
+			}
+			Usuario administrador = administradorAutenticado();
+			return liderRepository.findByIdAndCabecera_Usuario_Id(liderId, administrador.getId())
+					.orElseThrow(() -> new ResourceNotFoundException("No se encontró el líder de destino."));
+		}
+		throw new AccessDeniedException("Esta operación requiere permisos de administrador o líder.");
 	}
 
 	private VotanteResponse crearParaLider(Lider lider, VotanteCreateRequest request) {

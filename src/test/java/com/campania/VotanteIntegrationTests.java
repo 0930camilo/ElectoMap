@@ -234,6 +234,18 @@ class VotanteIntegrationTests {
 
 	@Test
 	@WithMockUser(username = "test-admin", roles = "ADMIN")
+	void listarVotantesMuestraPrimeroElUltimoAgregado() throws Exception {
+		Long primerVotanteId = crearVotante("81810011");
+		Long ultimoVotanteId = crearVotante("81810012");
+
+		mockMvc.perform(get("/api/votantes?page=0&size=10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.content[0].id").value(ultimoVotanteId))
+				.andExpect(jsonPath("$.data.content[1].id").value(primerVotanteId));
+	}
+
+	@Test
+	@WithMockUser(username = "test-admin", roles = "ADMIN")
 	void administradorNoPuedeFiltrarPorDocumentoDeLiderDeOtraOrganizacion() throws Exception {
 		crearLiderDeOtroAdministrador("lider-ajeno-filtro");
 
@@ -441,13 +453,35 @@ class VotanteIntegrationTests {
 
 	@Test
 	@WithMockUser(username = "test-leader", roles = "LIDER")
-	void liderNoPuedeImportarVotantes() throws Exception {
+	void liderPuedeImportarVotantesSoloParaSiMismo() throws Exception {
+		MockMultipartFile archivo = crearArchivoCsv("""
+				tipoDocumento,numeroDocumento,nombres,apellidos,mesaVotacion
+				CC,88888888,Ana,Gómez,12
+				""");
+		mockMvc.perform(multipart("/api/votantes/importaciones/validar")
+						.file(archivo))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.filasValidas").value(1));
+
+		mockMvc.perform(multipart("/api/votantes/importaciones")
+						.file(archivo))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.importados").value(1));
+
+		org.junit.jupiter.api.Assertions.assertEquals(1, votanteRepository.count());
+		org.junit.jupiter.api.Assertions.assertEquals(primerLiderId,
+				votanteRepository.findAll().get(0).getLider().getId());
+	}
+
+	@Test
+	@WithMockUser(username = "test-leader", roles = "LIDER")
+	void liderNoPuedeImportarVotantesParaOtroLider() throws Exception {
 		mockMvc.perform(multipart("/api/votantes/importaciones/validar")
 						.file(crearArchivoCsv("""
 								tipoDocumento,numeroDocumento,nombres,apellidos,mesaVotacion
-								CC,88888888,Ana,Gómez,12
+								CC,88888889,Ana,Gómez,12
 								"""))
-						.param("liderId", primerLiderId.toString()))
+						.param("liderId", segundoLiderId.toString()))
 				.andExpect(status().isForbidden());
 	}
 

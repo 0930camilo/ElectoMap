@@ -138,30 +138,30 @@ public class VotanteController {
 	}
 
 	@PostMapping("/importaciones/validar")
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasAnyRole('ADMIN', 'LIDER')")
 	public ResponseEntity<ApiResponse<ImportacionPreviewResponse>> validarImportacion(
 			@RequestParam("archivo") MultipartFile archivo,
-			@RequestParam Long liderId
+			@RequestParam(name = "liderId", required = false) Long liderId
 	) {
 		return ResponseEntity.ok(ApiResponse.success("Validación del archivo completada.",
 				importacionVotantesService.validar(archivo, liderId)));
 	}
 
 	@PostMapping("/importaciones")
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasAnyRole('ADMIN', 'LIDER')")
 	public ResponseEntity<ApiResponse<ImportacionResponse>> importar(
 			@RequestParam("archivo") MultipartFile archivo,
-			@RequestParam Long liderId
+			@RequestParam(name = "liderId", required = false) Long liderId
 	) {
 		return ResponseEntity.ok(ApiResponse.success("Importación procesada.",
 				importacionVotantesService.importar(archivo, liderId)));
 	}
 
 	@PostMapping(value = "/importaciones/reporte-errores", produces = "text/csv")
-	@PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasAnyRole('ADMIN', 'LIDER')")
 	public ResponseEntity<byte[]> descargarReporteErrores(
 			@RequestParam("archivo") MultipartFile archivo,
-			@RequestParam Long liderId
+			@RequestParam(name = "liderId", required = false) Long liderId
 	) {
 		return ResponseEntity.ok()
 				.contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
